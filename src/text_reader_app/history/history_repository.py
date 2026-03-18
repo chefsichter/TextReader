@@ -226,6 +226,24 @@ class HistoryRepository:
                 (*values, entry_id),
             )
 
+    def delete(self, entry_id: int) -> None:
+        """Delete one history entry by id."""
+
+        with self._connect() as connection:
+            connection.execute(
+                """
+                DELETE FROM history_entries
+                WHERE id = ?
+                """,
+                (entry_id,),
+            )
+
+    def delete_all(self) -> None:
+        """Delete all persisted history entries."""
+
+        with self._connect() as connection:
+            connection.execute("DELETE FROM history_entries")
+
     def _connect(self) -> sqlite3.Connection:
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(self._database_path)

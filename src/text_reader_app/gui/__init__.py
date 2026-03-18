@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QThreadPool
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
 from text_reader_app.capture import CaptureMode, TextCaptureError
 from text_reader_app.domain.models import AppPreferences, HistoryEntry, HistoryEntryStatus
@@ -161,6 +163,15 @@ def _configure_player_window(player_window: PlayerWindow, runtime_context: Any) 
     )
     player_window.connect_seek_requested(
         lambda position_ms: _seek_playback(runtime_context, position_ms),
+    )
+    player_window.connect_download_audio(
+        lambda: _download_current_audio(runtime_context, player_window),
+    )
+    player_window.connect_delete_current_entry(
+        lambda: _delete_current_entry(runtime_context, player_window),
+    )
+    player_window.connect_clear_history(
+        lambda: _confirm_and_clear_history(runtime_context, player_window),
     )
     audio_controller.player.positionChanged.connect(
         lambda position_ms: _sync_position(runtime_context, player_window, position_ms),
@@ -363,6 +374,67 @@ def _load_history_neighbor(
     _present_history_entry(runtime_context, player_window, history_entry)
 
 
+def _download_current_audio(runtime_context: Any, player_window: PlayerWindow) -> None:
+    audio_path = runtime_context.application_controller.current_audio_path()
+    if audio_path is None or not audio_path.exists():
+        player_window.set_status_text("audio unavailable")
+        return
+
+    target_path, _filter = QFileDialog.getSaveFileName(
+        player_window,
+        "Save audio file",
+        str(Path.home() / audio_path.name),
+        "Wave audio (*.wav);;All files (*)",
+    )
+    if not target_path:
+        return
+    try:
+        shutil.copy2(audio_path, target_path)
+    except OSError as exc:
+        player_window.set_status_text(f"save failed: {exc}")
+        return
+    player_window.set_status_text("audio saved")
+
+
+def _delete_current_entry(runtime_context: Any, player_window: PlayerWindow) -> None:
+    if runtime_context.background_jobs:
+        player_window.set_status_text("wait for synthesis")
+        return
+
+    next_entry = runtime_context.application_controller.delete_current_history_entry()
+    if next_entry is None:
+        _clear_presented_entry(player_window)
+        _sync_navigation(player_window, runtime_context)
+        _sync_entry_actions(player_window, runtime_context, None)
+        player_window.set_status_text("entry deleted")
+        return
+    _present_history_entry(runtime_context, player_window, next_entry)
+    _sync_media_availability(player_window, runtime_context)
+    player_window.set_status_text("entry deleted")
+
+
+def _confirm_and_clear_history(runtime_context: Any, player_window: PlayerWindow) -> None:
+    if runtime_context.background_jobs:
+        player_window.set_status_text("wait for synthesis")
+        return
+    button = QMessageBox.question(
+        player_window,
+        "Delete all entries",
+        "Delete all saved text and generated audio files?",
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.No,
+    )
+    if button != QMessageBox.StandardButton.Yes:
+        return
+    deleted_count = runtime_context.application_controller.clear_history()
+    _clear_presented_entry(player_window)
+    _sync_navigation(player_window, runtime_context)
+    _sync_entry_actions(player_window, runtime_context, None)
+    player_window.set_status_text(
+        "all entries deleted" if deleted_count else "history already empty",
+    )
+
+
 def _present_history_entry(
     runtime_context: Any,
     player_window: PlayerWindow,
@@ -378,12 +450,14 @@ def _present_history_entry(
     player_window.set_slider_enabled(audio_controller.can_seek())
     player_window.set_playback_state(audio_controller.playback_state_name())
     _sync_navigation(player_window, runtime_context)
+    _sync_entry_actions(player_window, runtime_context, history_entry)
 
 
 def _restore_recent_history(player_window: PlayerWindow, runtime_context: Any) -> None:
     latest_entry = runtime_context.history_repository.latest()
     if latest_entry is None or latest_entry.id is None:
         _sync_navigation(player_window, runtime_context)
+        _sync_entry_actions(player_window, runtime_context, None)
         return
 
     runtime_context.application_controller.current_history_entry_id = latest_entry.id
@@ -452,6 +526,7 @@ def _handle_synthesis_failure(
         runtime_context.history_repository.update(history_entry)
     player_window.set_status_text("error")
     player_window.set_preview_text(message)
+    _sync_entry_actions(player_window, runtime_context, history_entry)
 
 
 def _discard_background_job(runtime_context: Any, worker: SynthesisWorker) -> None:
@@ -476,6 +551,23 @@ def _sync_media_availability(player_window: PlayerWindow, runtime_context: Any) 
         return
     player_window.set_duration_ms(audio_controller.duration_ms())
     player_window.set_position_ms(audio_controller.position_ms())
+
+
+def _sync_entry_actions(
+    player_window: PlayerWindow,
+    runtime_context: Any,
+    history_entry: HistoryEntry | None,
+) -> None:
+    total_entries = runtime_context.history_repository.count_entries()
+    current_entry = history_entry or runtime_context.application_controller.current_history_entry()
+    has_audio = bool(current_entry and current_entry.audio_path)
+    has_entry = current_entry is not None and not runtime_context.background_jobs
+    has_history = total_entries > 0 and not runtime_context.background_jobs
+    player_window.set_entry_actions_enabled(
+        has_audio=has_audio,
+        has_entry=has_entry,
+        has_history=has_history,
+    )
 
 
 def _sync_navigation(player_window: PlayerWindow, runtime_context: Any) -> None:
@@ -551,3 +643,13 @@ def _history_context_text(history_entry: HistoryEntry) -> str:
     if history_entry.language:
         parts.append(f"language={history_entry.language}")
     return " | ".join(parts)
+
+
+def _clear_presented_entry(player_window: PlayerWindow) -> None:
+    player_window.set_preview_text("")
+    player_window.set_entry_source_text("")
+    player_window.set_entry_context_text("")
+    player_window.set_playback_state("stopped")
+    player_window.set_transport_enabled(False)
+    player_window.set_slider_enabled(False)
+    player_window.reset_playback_position()

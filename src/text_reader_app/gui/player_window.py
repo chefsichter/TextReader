@@ -157,6 +157,12 @@ class PlayerWindow(QWidget):
         self._language_badge.hide()
         self._timestamp_label = QLabel("")
         self._timestamp_label.setObjectName("entryTimestamp")
+        self._download_audio_button = QPushButton("Download audio")
+        self._download_audio_button.setObjectName("historyActionButton")
+        self._delete_entry_button = QPushButton("Delete entry")
+        self._delete_entry_button.setObjectName("historyActionButton")
+        self._clear_history_button = QPushButton("Delete all")
+        self._clear_history_button.setObjectName("historyActionButton")
         self._preview_area = _PreviewArea()
 
         self._build_layout()
@@ -259,6 +265,17 @@ class PlayerWindow(QWidget):
         panel_bg = _PANEL_BG_DARK if theme == "dark" else _PANEL_BG_LIGHT
         self._preview_area.set_bg_color(panel_bg)
 
+    def set_entry_actions_enabled(
+        self,
+        *,
+        has_audio: bool,
+        has_entry: bool,
+        has_history: bool,
+    ) -> None:
+        self._download_audio_button.setEnabled(has_audio)
+        self._delete_entry_button.setEnabled(has_entry)
+        self._clear_history_button.setEnabled(has_history)
+
     # ── Signal connectors ─────────────────────────────────────────
 
     def connect_play_pause(self, callback: Callable[[], None]) -> None:
@@ -284,6 +301,15 @@ class PlayerWindow(QWidget):
 
     def connect_theme_toggle(self, callback: Callable[[], None]) -> None:
         self._theme_button.clicked.connect(callback)
+
+    def connect_download_audio(self, callback: Callable[[], None]) -> None:
+        self._download_audio_button.clicked.connect(callback)
+
+    def connect_delete_current_entry(self, callback: Callable[[], None]) -> None:
+        self._delete_entry_button.clicked.connect(callback)
+
+    def connect_clear_history(self, callback: Callable[[], None]) -> None:
+        self._clear_history_button.clicked.connect(callback)
 
     # ── Layout builders ───────────────────────────────────────────
 
@@ -365,6 +391,7 @@ class PlayerWindow(QWidget):
         vbox.setContentsMargins(10, 8, 10, 8)
         vbox.setSpacing(6)
         vbox.addLayout(self._build_badge_row())
+        vbox.addLayout(self._build_entry_action_row())
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setObjectName("panelSeparator")
@@ -380,6 +407,20 @@ class PlayerWindow(QWidget):
         row.addWidget(self._language_badge)
         row.addWidget(self._timestamp_label)
         row.addStretch()
+        return row
+
+    def _build_entry_action_row(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addStretch()
+        row.addWidget(self._download_audio_button)
+        row.addWidget(self._delete_entry_button)
+        row.addWidget(self._clear_history_button)
+        self.set_entry_actions_enabled(
+            has_audio=False,
+            has_entry=False,
+            has_history=False,
+        )
         return row
 
     def _build_slider(self) -> QSlider:

@@ -58,6 +58,13 @@ class AudioPlaybackController:
 
         self._player.stop()
 
+    def clear_audio(self) -> None:
+        """Stop playback and unload the current media source."""
+
+        self.stop()
+        self._player.setSource(QUrl())
+        self._loaded_audio_path = None
+
     def seek_to_ms(self, position_ms: int) -> int:
         """Seek to a clamped position in milliseconds."""
 

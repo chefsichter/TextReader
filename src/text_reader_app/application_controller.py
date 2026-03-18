@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
+from pathlib import Path
 
 from text_reader_app.audio import AudioPlaybackController
 from text_reader_app.app_runtime_paths import AppRuntimePaths
@@ -295,6 +296,14 @@ class ApplicationController:
             return self.history_repository.latest()
         return self.history_repository.get(self.current_history_entry_id)
 
+    def current_audio_path(self) -> Path | None:
+        """Return the current entry's audio file path, if one exists."""
+
+        current_entry = self.current_history_entry()
+        if current_entry is None or not current_entry.audio_path:
+            return None
+        return Path(current_entry.audio_path).expanduser().resolve()
+
     def load_history_entry(
         self,
         entry_id: int,
@@ -342,6 +351,36 @@ class ApplicationController:
             return
         self.history_repository.update_last_position(current_entry.id, position_ms)
 
+    def delete_current_history_entry(self) -> HistoryEntry | None:
+        """Delete the focused entry and return the next entry to present."""
+
+        current_entry = self.current_history_entry()
+        if current_entry is None or current_entry.id is None:
+            return None
+
+        navigation = self.history_navigation()
+        replacement_id = navigation.next_entry_id or navigation.previous_entry_id
+        self._delete_history_entry(current_entry)
+        self.current_history_entry_id = replacement_id
+        if replacement_id is None:
+            self.audio_playback_controller.clear_audio()
+            return None
+        return self.load_history_entry(replacement_id, autoplay=False)
+
+    def clear_history(self) -> int:
+        """Delete every history entry and its generated audio files."""
+
+        total_entries = self.history_repository.count_entries()
+        if total_entries <= 0:
+            return 0
+
+        for entry in self.history_repository.list_recent(limit=total_entries):
+            self._delete_history_audio(entry.audio_path)
+        self.audio_playback_controller.clear_audio()
+        self.history_repository.delete_all()
+        self.current_history_entry_id = None
+        return total_entries
+
     def _load_history_audio(self, history_entry: HistoryEntry, *, autoplay: bool) -> None:
         audio_path = history_entry.audio_path
         if not audio_path:
@@ -352,6 +391,18 @@ class ApplicationController:
             self.audio_playback_controller.seek_to_ms(history_entry.last_position_ms)
         if autoplay:
             self.audio_playback_controller.play()
+
+    def _delete_history_entry(self, entry: HistoryEntry) -> None:
+        self._delete_history_audio(entry.audio_path)
+        self.history_repository.delete(entry.id)
+
+    def _delete_history_audio(self, audio_path: str | None) -> None:
+        if not audio_path:
+            return
+        try:
+            Path(audio_path).expanduser().resolve().unlink(missing_ok=True)
+        except OSError:
+            return
 
 
 def build_application_controller(runtime_paths: AppRuntimePaths) -> ApplicationController:
