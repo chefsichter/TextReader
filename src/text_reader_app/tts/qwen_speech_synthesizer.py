@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from array import array
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -64,6 +64,17 @@ class QwenSpeechSynthesizer:
         """Return the configured default output directory."""
 
         return self._output_directory
+
+    def update_runtime_preferences(self, *, speaker: str, language: str) -> None:
+        """Apply persisted user choices and invalidate the lazy backend state."""
+
+        self._runtime_config = replace(
+            self._runtime_config,
+            speaker=speaker.strip() or self._runtime_config.speaker,
+            language=language.strip() or self._runtime_config.language,
+        )
+        self._backend = None
+        self._prepare_result = None
 
     def prepare(self) -> QwenSynthesisResult:
         """Attempt to import and initialize the Qwen backend lazily."""

@@ -21,6 +21,7 @@ class TrayActionCallbacks:
     on_read_selection: ActionCallback | None = None
     on_read_clipboard: ActionCallback | None = None
     on_capture_mode_changed: ModeCallback | None = None
+    on_open_settings: ActionCallback | None = None
     on_quit: ActionCallback | None = None
 
 
@@ -60,6 +61,11 @@ class TrayController:
         self._player_window.raise_()
         self._player_window.activateWindow()
 
+    def show_settings(self) -> None:
+        if self._callbacks.on_open_settings is None:
+            return
+        self._callbacks.on_open_settings()
+
     def active_capture_mode(self) -> str:
         return self._active_capture_mode
 
@@ -80,6 +86,7 @@ class TrayController:
         self._tray_icon.setToolTip("TextReader")
         self._tray_icon.activated.connect(self._handle_activation)
         self._add_action("Open player", self.show_player)
+        self._add_action("Open settings", self.show_settings)
         self._add_action("Read active source", self._run_active_capture_action)
         self._add_capture_mode_menu()
         self._tray_menu.addSeparator()

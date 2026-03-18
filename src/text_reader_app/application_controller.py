@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from text_reader_app.audio import AudioPlaybackController
 from text_reader_app.app_runtime_paths import AppRuntimePaths
 from text_reader_app.capture import CaptureMode, TextCaptureService
-from text_reader_app.domain.models import HistoryEntry, HistoryEntryStatus
+from text_reader_app.domain.models import AppPreferences, HistoryEntry, HistoryEntryStatus
 from text_reader_app.history import HistoryRepository
 from text_reader_app.settings import SettingsRepository
 from text_reader_app.tts import (
@@ -29,6 +29,7 @@ class ApplicationController:
     qwen_speech_synthesizer: QwenSpeechSynthesizer
     runtime_paths: AppRuntimePaths
     hotkey_service: object | None = None
+    current_history_entry_id: int | None = None
 
     def capture_mode(self) -> str:
         """Return the persisted active capture mode."""
@@ -58,6 +59,13 @@ class ApplicationController:
         except ValueError:
             return 5
 
+    def set_jump_seconds(self, jump_seconds: int) -> int:
+        """Persist and normalize the playback jump size."""
+
+        normalized_value = max(1, int(jump_seconds))
+        self.settings_repository.set("jump_seconds", str(normalized_value))
+        return normalized_value
+
     def hotkey_trigger(self) -> str:
         """Return the configured global hotkey trigger string."""
 
@@ -69,6 +77,65 @@ class ApplicationController:
         normalized_trigger = trigger.strip() or "Alt+L"
         self.settings_repository.set("hotkey_trigger", normalized_trigger)
         return normalized_trigger
+
+    def voice(self) -> str:
+        """Return the configured speaker id."""
+
+        return (
+            self.settings_repository.get_value(
+                "voice",
+                self.qwen_speech_synthesizer.runtime_config.speaker,
+            )
+            or self.qwen_speech_synthesizer.runtime_config.speaker
+        )
+
+    def language(self) -> str:
+        """Return the configured synthesis language."""
+
+        return (
+            self.settings_repository.get_value(
+                "language",
+                self.qwen_speech_synthesizer.runtime_config.language,
+            )
+            or self.qwen_speech_synthesizer.runtime_config.language
+        )
+
+    def preferences(self) -> AppPreferences:
+        """Return a normalized snapshot of persisted application settings."""
+
+        return AppPreferences(
+            capture_mode=self.capture_mode(),
+            hotkey_trigger=self.hotkey_trigger(),
+            jump_seconds=self.jump_seconds(),
+            voice=self.voice(),
+            language=self.language(),
+        )
+
+    def save_preferences(
+        self,
+        *,
+        capture_mode: str,
+        hotkey_trigger: str,
+        jump_seconds: int,
+        voice: str,
+        language: str,
+    ) -> AppPreferences:
+        """Persist settings and apply runtime TTS choices immediately."""
+
+        normalized_preferences = AppPreferences(
+            capture_mode=self.set_capture_mode(capture_mode),
+            hotkey_trigger=self.set_hotkey_trigger(hotkey_trigger),
+            jump_seconds=self.set_jump_seconds(jump_seconds),
+            voice=voice.strip() or self.voice(),
+            language=language.strip() or self.language(),
+        )
+        self.settings_repository.set("voice", normalized_preferences.voice)
+        self.settings_repository.set("language", normalized_preferences.language)
+        self.qwen_speech_synthesizer.update_runtime_preferences(
+            speaker=normalized_preferences.voice,
+            language=normalized_preferences.language,
+        )
+        return normalized_preferences
 
     def handle_hotkey_activation(self) -> tuple[HistoryEntry, QwenSynthesisResult]:
         """Run the configured active-source capture flow."""
@@ -103,15 +170,39 @@ class ApplicationController:
             source_type=captured_text.source_type,
             text=captured_text.text,
         )
-        return self.history_repository.create(history_entry)
+        created_entry = self.history_repository.create(history_entry)
+        self.current_history_entry_id = created_entry.id
+        return created_entry
 
     def process_capture(self, mode: CaptureMode | str) -> tuple[HistoryEntry, QwenSynthesisResult]:
         """Capture, persist, attempt synthesis, and persist the new state."""
 
         history_entry = self.capture_and_store(mode)
         result = self.synthesize(history_entry.text)
-        self._update_history_from_synthesis(history_entry, result)
+        self.complete_synthesis(history_entry, result)
         return history_entry, result
+
+    def synthesize_text(self, text: str) -> QwenSynthesisResult:
+        """Run synthesis without touching playback state from worker threads."""
+
+        return self.qwen_speech_synthesizer.synthesize(text)
+
+    def complete_synthesis(
+        self,
+        history_entry: HistoryEntry,
+        result: QwenSynthesisResult,
+        *,
+        autoplay: bool = True,
+    ) -> HistoryEntry:
+        """Persist a synthesis result and load audio on the GUI thread."""
+
+        self._update_history_from_synthesis(history_entry, result)
+        updated_entry = history_entry
+        if history_entry.id is not None:
+            updated_entry = self.history_repository.get(history_entry.id) or history_entry
+        if autoplay and result.ok and result.audio_path:
+            self._load_result_audio(result)
+        return updated_entry
 
     def _update_history_from_synthesis(
         self,
@@ -125,6 +216,8 @@ class ApplicationController:
         history_entry.voice = self.qwen_speech_synthesizer.runtime_config.speaker
         history_entry.audio_path = result.audio_path
         self.history_repository.update(history_entry)
+        if history_entry.id is not None:
+            self.current_history_entry_id = history_entry.id
 
     def _load_result_audio(self, result: QwenSynthesisResult) -> QwenSynthesisResult:
         try:
@@ -136,6 +229,76 @@ class ApplicationController:
                 message=f"Generated audio could not be loaded: {exc}",
             )
         return result
+
+    def list_recent_history(self, limit: int = 50) -> list[HistoryEntry]:
+        """Return recent history entries for the player window."""
+
+        return self.history_repository.list_recent(limit=limit)
+
+    def current_history_entry(self) -> HistoryEntry | None:
+        """Return the currently focused history entry, if any."""
+
+        if self.current_history_entry_id is None:
+            return self.history_repository.latest()
+        return self.history_repository.get(self.current_history_entry_id)
+
+    def load_history_entry(
+        self,
+        entry_id: int,
+        *,
+        autoplay: bool = False,
+    ) -> HistoryEntry | None:
+        """Load one history entry into the player and optionally start playback."""
+
+        history_entry = self.history_repository.get(entry_id)
+        if history_entry is None:
+            return None
+        self.current_history_entry_id = history_entry.id
+        self._load_history_audio(history_entry, autoplay=autoplay)
+        return history_entry
+
+    def load_adjacent_history_entry(
+        self,
+        direction: str,
+        *,
+        autoplay: bool = False,
+    ) -> HistoryEntry | None:
+        """Load the neighboring history entry in the requested direction."""
+
+        current_entry = self.current_history_entry()
+        if current_entry is None or current_entry.id is None:
+            return None
+        if direction == "previous":
+            neighbor = self.history_repository.get_previous(current_entry.id)
+        else:
+            neighbor = self.history_repository.get_next(current_entry.id)
+        if neighbor is None or neighbor.id is None:
+            return None
+        return self.load_history_entry(neighbor.id, autoplay=autoplay)
+
+    def history_navigation(self) -> object:
+        """Return navigation metadata for the current history entry."""
+
+        return self.history_repository.describe_navigation(self.current_history_entry_id)
+
+    def remember_playback_position(self, position_ms: int) -> None:
+        """Persist the playback cursor for the focused entry."""
+
+        current_entry = self.current_history_entry()
+        if current_entry is None or current_entry.id is None:
+            return
+        self.history_repository.update_last_position(current_entry.id, position_ms)
+
+    def _load_history_audio(self, history_entry: HistoryEntry, *, autoplay: bool) -> None:
+        audio_path = history_entry.audio_path
+        if not audio_path:
+            self.audio_playback_controller.stop()
+            return
+        self.audio_playback_controller.load_audio(audio_path)
+        if history_entry.last_position_ms:
+            self.audio_playback_controller.seek_to_ms(history_entry.last_position_ms)
+        if autoplay:
+            self.audio_playback_controller.play()
 
 
 def build_application_controller(runtime_paths: AppRuntimePaths) -> ApplicationController:
@@ -154,6 +317,10 @@ def build_application_controller(runtime_paths: AppRuntimePaths) -> ApplicationC
         runtime_paths=runtime_paths,
     )
     _ensure_default_settings(controller)
+    controller.qwen_speech_synthesizer.update_runtime_preferences(
+        speaker=controller.voice(),
+        language=controller.language(),
+    )
     return controller
 
 

@@ -26,6 +26,17 @@ class AppSetting:
     updated_at: datetime
 
 
+@dataclass(slots=True, frozen=True)
+class AppPreferences:
+    """Normalized persisted settings used by the runtime and GUI."""
+
+    capture_mode: str
+    hotkey_trigger: str
+    jump_seconds: int
+    voice: str
+    language: str
+
+
 @dataclass(slots=True)
 class HistoryEntry:
     """Persisted text capture and synthesis state."""
