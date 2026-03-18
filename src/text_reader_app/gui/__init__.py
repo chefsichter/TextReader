@@ -436,10 +436,16 @@ def _edit_and_regenerate_current_entry(
     if request is None:
         return
 
-    prepared_entry = runtime_context.application_controller.prepare_history_entry_regeneration(
-        current_entry.id,
-        request,
-    )
+    if request.save_as_new_entry:
+        prepared_entry = runtime_context.application_controller.create_regenerated_history_entry(
+            current_entry,
+            request,
+        )
+    else:
+        prepared_entry = runtime_context.application_controller.prepare_history_entry_regeneration(
+            current_entry.id,
+            request,
+        )
     if prepared_entry is None:
         player_window.set_status_text("entry unavailable")
         return
@@ -719,6 +725,7 @@ def _regeneration_request(
         voice=history_entry.voice or runtime_context.voice,
         language=history_entry.language or runtime_context.language,
         synthesis_mode=runtime_context.synthesis_mode,
+        save_as_new_entry=False,
     )
 
 

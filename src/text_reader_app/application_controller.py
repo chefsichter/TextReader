@@ -347,6 +347,25 @@ class ApplicationController:
         self.history_repository.update(history_entry)
         return history_entry
 
+    def create_regenerated_history_entry(
+        self,
+        source_entry: HistoryEntry,
+        request: EntryRegenerationRequest,
+    ) -> HistoryEntry:
+        """Create a new entry from edited regeneration inputs."""
+
+        history_entry = HistoryEntry.new(
+            source_type=source_entry.source_type,
+            source_app=source_entry.source_app,
+            text=request.text,
+            status=HistoryEntryStatus.CAPTURED,
+        )
+        history_entry.voice = request.voice
+        history_entry.language = request.language
+        created_entry = self.history_repository.create(history_entry)
+        self.current_history_entry_id = created_entry.id
+        return created_entry
+
     def load_history_entry(
         self,
         entry_id: int,

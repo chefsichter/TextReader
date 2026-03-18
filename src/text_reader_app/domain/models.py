@@ -47,6 +47,7 @@ class EntryRegenerationRequest:
     voice: str
     language: str
     synthesis_mode: str = "whole"
+    save_as_new_entry: bool = False
 
 
 @dataclass(slots=True)

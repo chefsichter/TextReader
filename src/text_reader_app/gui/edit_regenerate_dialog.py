@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -31,6 +32,7 @@ class EditRegenerateDialog(QDialog):
         self._reader_box = QComboBox()
         self._language_box = QComboBox()
         self._synthesis_mode_box = QComboBox()
+        self._save_as_new_entry_box = QCheckBox("Save as new entry")
         self._build_dialog()
         self._set_initial_request(initial_request)
 
@@ -42,6 +44,7 @@ class EditRegenerateDialog(QDialog):
             voice=self._reader_box.currentText().strip() or "serena",
             language=self._language_box.currentText().strip() or "german",
             synthesis_mode=self._synthesis_mode_box.currentData() or "whole",
+            save_as_new_entry=self._save_as_new_entry_box.isChecked(),
         )
 
     def _build_dialog(self) -> None:
@@ -58,6 +61,7 @@ class EditRegenerateDialog(QDialog):
         form.addRow("Language", self._language_box)
         form.addRow("Synthesis", self._synthesis_mode_box)
         layout.addLayout(form)
+        layout.addWidget(self._save_as_new_entry_box)
         layout.addWidget(self._build_button_box())
 
     def _configure_controls(self) -> None:
@@ -75,6 +79,7 @@ class EditRegenerateDialog(QDialog):
         self._select_editable_text(self._reader_box, request.voice)
         self._select_editable_text(self._language_box, request.language)
         self._select_synthesis_mode(request.synthesis_mode)
+        self._save_as_new_entry_box.setChecked(request.save_as_new_entry)
 
     def _build_button_box(self) -> QDialogButtonBox:
         buttons = QDialogButtonBox(
