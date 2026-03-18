@@ -17,6 +17,7 @@ The current codebase contains:
 - tray actions for reader and language selection using the full Qwen custom-voice list
 - tray and settings toggle for Qwen whole-text vs streaming-input synthesis mode
 - player actions for audio export, single-entry delete, and clear-all with confirmation
+- player action to edit the current entry and regenerate it with different text/reader/language
 - local command bridge for external triggering and single-instance commands
 - Windows selection backend
 - launcher scripts under `scripts/`
@@ -126,6 +127,7 @@ Validated in this Linux environment:
 - tray reader/language persistence and settings-window sync
 - tray/settings persistence for Qwen synthesis mode
 - controller-backed delete/clear history actions and player export button wiring
+- edit/regenerate dialog and controller path for re-synthesizing one existing entry
 - metadata badges now use Qt-compatible fixed-radius pill styling
 - offscreen Linux selection capture smoke test
 - local command bridge smoke test

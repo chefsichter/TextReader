@@ -9,7 +9,12 @@ from pathlib import Path
 from text_reader_app.audio import AudioPlaybackController
 from text_reader_app.app_runtime_paths import AppRuntimePaths
 from text_reader_app.capture import CaptureMode, TextCaptureService
-from text_reader_app.domain.models import AppPreferences, HistoryEntry, HistoryEntryStatus
+from text_reader_app.domain.models import (
+    AppPreferences,
+    EntryRegenerationRequest,
+    HistoryEntry,
+    HistoryEntryStatus,
+)
 from text_reader_app.history import HistoryRepository
 from text_reader_app.settings import SettingsRepository
 from text_reader_app.tts import (
@@ -241,6 +246,19 @@ class ApplicationController:
 
         return self.qwen_speech_synthesizer.synthesize(text)
 
+    def synthesize_text_with_overrides(
+        self,
+        request: EntryRegenerationRequest,
+    ) -> QwenSynthesisResult:
+        """Run synthesis for one edited entry without mutating global defaults."""
+
+        return self.qwen_speech_synthesizer.synthesize(
+            request.text,
+            speaker=request.voice,
+            language=request.language,
+            non_streaming_mode=_non_streaming_mode(request.synthesis_mode),
+        )
+
     def complete_synthesis(
         self,
         history_entry: HistoryEntry,
@@ -265,9 +283,9 @@ class ApplicationController:
     ) -> None:
         history_entry.status = _map_synthesis_status(result)
         history_entry.error_message = None if result.ok else result.message
-        history_entry.model_id = self.qwen_speech_synthesizer.runtime_config.model_id
-        history_entry.language = self.qwen_speech_synthesizer.runtime_config.language
-        history_entry.voice = self.qwen_speech_synthesizer.runtime_config.speaker
+        history_entry.model_id = result.model_id or self.qwen_speech_synthesizer.runtime_config.model_id
+        history_entry.language = result.language or history_entry.language
+        history_entry.voice = result.speaker or history_entry.voice
         history_entry.audio_path = result.audio_path
         self.history_repository.update(history_entry)
         if history_entry.id is not None:
@@ -303,6 +321,31 @@ class ApplicationController:
         if current_entry is None or not current_entry.audio_path:
             return None
         return Path(current_entry.audio_path).expanduser().resolve()
+
+    def prepare_history_entry_regeneration(
+        self,
+        entry_id: int,
+        request: EntryRegenerationRequest,
+    ) -> HistoryEntry | None:
+        """Apply edited fields and clear stale audio before regeneration."""
+
+        history_entry = self.history_repository.get(entry_id)
+        if history_entry is None or history_entry.id is None:
+            return None
+
+        if self.current_history_entry_id == history_entry.id:
+            self.audio_playback_controller.clear_audio()
+        self._delete_history_audio(history_entry.audio_path)
+        history_entry.text = request.text
+        history_entry.status = HistoryEntryStatus.CAPTURED
+        history_entry.error_message = None
+        history_entry.voice = request.voice
+        history_entry.language = request.language
+        history_entry.audio_path = None
+        history_entry.audio_duration_ms = None
+        history_entry.last_position_ms = 0
+        self.history_repository.update(history_entry)
+        return history_entry
 
     def load_history_entry(
         self,

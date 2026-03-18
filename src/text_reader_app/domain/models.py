@@ -39,6 +39,16 @@ class AppPreferences:
     theme: str = "light"
 
 
+@dataclass(slots=True, frozen=True)
+class EntryRegenerationRequest:
+    """Editable synthesis inputs for regenerating one history entry."""
+
+    text: str
+    voice: str
+    language: str
+    synthesis_mode: str = "whole"
+
+
 @dataclass(slots=True)
 class HistoryEntry:
     """Persisted text capture and synthesis state."""

@@ -157,6 +157,8 @@ class PlayerWindow(QWidget):
         self._language_badge.hide()
         self._timestamp_label = QLabel("")
         self._timestamp_label.setObjectName("entryTimestamp")
+        self._edit_regenerate_button = QPushButton("Edit & regenerate")
+        self._edit_regenerate_button.setObjectName("historyActionButton")
         self._download_audio_button = QPushButton("Download audio")
         self._download_audio_button.setObjectName("historyActionButton")
         self._delete_entry_button = QPushButton("Delete entry")
@@ -272,6 +274,7 @@ class PlayerWindow(QWidget):
         has_entry: bool,
         has_history: bool,
     ) -> None:
+        self._edit_regenerate_button.setEnabled(has_entry)
         self._download_audio_button.setEnabled(has_audio)
         self._delete_entry_button.setEnabled(has_entry)
         self._clear_history_button.setEnabled(has_history)
@@ -304,6 +307,9 @@ class PlayerWindow(QWidget):
 
     def connect_download_audio(self, callback: Callable[[], None]) -> None:
         self._download_audio_button.clicked.connect(callback)
+
+    def connect_edit_regenerate(self, callback: Callable[[], None]) -> None:
+        self._edit_regenerate_button.clicked.connect(callback)
 
     def connect_delete_current_entry(self, callback: Callable[[], None]) -> None:
         self._delete_entry_button.clicked.connect(callback)
@@ -413,6 +419,7 @@ class PlayerWindow(QWidget):
         row = QHBoxLayout()
         row.setSpacing(8)
         row.addStretch()
+        row.addWidget(self._edit_regenerate_button)
         row.addWidget(self._download_audio_button)
         row.addWidget(self._delete_entry_button)
         row.addWidget(self._clear_history_button)

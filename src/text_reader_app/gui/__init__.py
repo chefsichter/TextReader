@@ -10,8 +10,14 @@ from PySide6.QtCore import QThreadPool
 from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
 from text_reader_app.capture import CaptureMode, TextCaptureError
-from text_reader_app.domain.models import AppPreferences, HistoryEntry, HistoryEntryStatus
+from text_reader_app.domain.models import (
+    AppPreferences,
+    EntryRegenerationRequest,
+    HistoryEntry,
+    HistoryEntryStatus,
+)
 
+from .edit_regenerate_dialog import show_edit_regenerate_dialog
 from .player_window import PlayerWindow
 from .preferences_options import LANGUAGE_OPTIONS, READER_OPTIONS
 from .settings_window import SettingsFormState, SettingsWindow, SettingsWindowCallbacks
@@ -43,7 +49,6 @@ def create_gui_shell(runtime_context: Any) -> list[object]:
     tray_controller = TrayController(
         app=app,
         player_window=player_window,
-        initial_capture_mode=runtime_context.capture_mode,
         initial_hotkey_trigger=runtime_context.hotkey_trigger,
         initial_reader=runtime_context.voice,
         initial_language=runtime_context.language,
@@ -94,7 +99,6 @@ def _build_tray_callbacks(
             player_window,
             CaptureMode.CLIPBOARD,
         ),
-        on_capture_mode_changed=lambda mode: _persist_capture_mode(runtime_context, mode),
         on_reader_changed=lambda reader: _update_reader_from_tray(
             runtime_context,
             player_window,
@@ -167,6 +171,9 @@ def _configure_player_window(player_window: PlayerWindow, runtime_context: Any) 
     player_window.connect_download_audio(
         lambda: _download_current_audio(runtime_context, player_window),
     )
+    player_window.connect_edit_regenerate(
+        lambda: _edit_and_regenerate_current_entry(runtime_context, player_window),
+    )
     player_window.connect_delete_current_entry(
         lambda: _delete_current_entry(runtime_context, player_window),
     )
@@ -204,10 +211,6 @@ def _capture_and_present(
     player_window.set_status_text("synthesizing")
     _start_synthesis_worker(runtime_context, player_window, stored_entry)
     player_window.show()
-
-
-def _persist_capture_mode(runtime_context: Any, mode: str) -> None:
-    runtime_context.capture_mode = runtime_context.application_controller.set_capture_mode(mode)
 
 
 def _toggle_theme(runtime_context: Any, player_window: PlayerWindow) -> None:
@@ -413,6 +416,39 @@ def _delete_current_entry(runtime_context: Any, player_window: PlayerWindow) -> 
     player_window.set_status_text("entry deleted")
 
 
+def _edit_and_regenerate_current_entry(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+) -> None:
+    if runtime_context.background_jobs:
+        player_window.set_status_text("wait for synthesis")
+        return
+
+    current_entry = runtime_context.application_controller.current_history_entry()
+    if current_entry is None or current_entry.id is None:
+        player_window.set_status_text("no entry selected")
+        return
+
+    request = show_edit_regenerate_dialog(
+        parent=player_window,
+        initial_request=_regeneration_request(current_entry, runtime_context),
+    )
+    if request is None:
+        return
+
+    prepared_entry = runtime_context.application_controller.prepare_history_entry_regeneration(
+        current_entry.id,
+        request,
+    )
+    if prepared_entry is None:
+        player_window.set_status_text("entry unavailable")
+        return
+
+    _present_history_entry(runtime_context, player_window, prepared_entry)
+    player_window.set_status_text("synthesizing")
+    _start_regeneration_worker(runtime_context, player_window, prepared_entry, request)
+
+
 def _confirm_and_clear_history(runtime_context: Any, player_window: PlayerWindow) -> None:
     if runtime_context.background_jobs:
         player_window.set_status_text("wait for synthesis")
@@ -473,6 +509,41 @@ def _start_synthesis_worker(
 ) -> None:
     worker = SynthesisWorker(runtime_context.application_controller, history_entry)
     runtime_context.background_jobs.append(worker)
+    _sync_entry_actions(player_window, runtime_context, history_entry)
+    worker.signals.finished.connect(
+        lambda entry, result: _finish_synthesis(
+            runtime_context,
+            player_window,
+            entry,
+            result,
+            worker,
+        ),
+    )
+    worker.signals.failed.connect(
+        lambda entry, message: _handle_synthesis_failure(
+            runtime_context,
+            player_window,
+            entry,
+            message,
+            worker,
+        ),
+    )
+    QThreadPool.globalInstance().start(worker)
+
+
+def _start_regeneration_worker(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+    history_entry: HistoryEntry,
+    request: EntryRegenerationRequest,
+) -> None:
+    worker = SynthesisWorker(
+        runtime_context.application_controller,
+        history_entry,
+        request=request,
+    )
+    runtime_context.background_jobs.append(worker)
+    _sync_entry_actions(player_window, runtime_context, history_entry)
     worker.signals.finished.connect(
         lambda entry, result: _finish_synthesis(
             runtime_context,
@@ -616,12 +687,6 @@ def _handle_ui_local_command(
         settings_window.raise_()
         settings_window.activateWindow()
         return
-    if command == "trigger-active-source":
-        _capture_and_present(
-            runtime_context,
-            player_window,
-            CaptureMode(runtime_context.capture_mode),
-        )
 
 
 def _settings_form_state(preferences: AppPreferences) -> SettingsFormState:
@@ -643,6 +708,18 @@ def _history_context_text(history_entry: HistoryEntry) -> str:
     if history_entry.language:
         parts.append(f"language={history_entry.language}")
     return " | ".join(parts)
+
+
+def _regeneration_request(
+    history_entry: HistoryEntry,
+    runtime_context: Any,
+) -> EntryRegenerationRequest:
+    return EntryRegenerationRequest(
+        text=history_entry.text,
+        voice=history_entry.voice or runtime_context.voice,
+        language=history_entry.language or runtime_context.language,
+        synthesis_mode=runtime_context.synthesis_mode,
+    )
 
 
 def _clear_presented_entry(player_window: PlayerWindow) -> None:

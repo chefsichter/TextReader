@@ -33,6 +33,9 @@ class QwenSynthesisResult:
     message: str
     audio_path: str | None = None
     sample_rate: int | None = None
+    speaker: str | None = None
+    language: str | None = None
+    model_id: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -130,6 +133,10 @@ class QwenSpeechSynthesizer:
         self,
         text: str,
         output_directory: str | Path | None = None,
+        *,
+        speaker: str | None = None,
+        language: str | None = None,
+        non_streaming_mode: bool | None = None,
     ) -> QwenSynthesisResult:
         """Synthesize text into a WAV file under the requested output directory."""
 
@@ -154,11 +161,18 @@ class QwenSpeechSynthesizer:
             )
 
         try:
+            selected_speaker, selected_language, selected_non_streaming_mode = (
+                self._resolve_generation_preferences(
+                    speaker=speaker,
+                    language=language,
+                    non_streaming_mode=non_streaming_mode,
+                )
+            )
             wavs, sample_rate = self._backend.generate_custom_voice(
                 text,
-                speaker=self._resolve_speaker(),
-                language=self._runtime_config.language,
-                non_streaming_mode=self._runtime_config.non_streaming_mode,
+                speaker=selected_speaker,
+                language=selected_language,
+                non_streaming_mode=selected_non_streaming_mode,
             )
             audio_path = _build_output_path(target_directory)
             _write_wav_file(audio_path, wavs[0], sample_rate)
@@ -173,6 +187,9 @@ class QwenSpeechSynthesizer:
             message="Qwen synthesized audio successfully.",
             audio_path=str(audio_path),
             sample_rate=sample_rate,
+            speaker=selected_speaker,
+            language=selected_language,
+            model_id=self._runtime_config.model_id,
         )
 
     def _resolve_speaker(self) -> str:
@@ -185,6 +202,26 @@ class QwenSpeechSynthesizer:
         if speaker in supported:
             return speaker
         return list(supported)[0] if supported else speaker
+
+    def _resolve_generation_preferences(
+        self,
+        *,
+        speaker: str | None,
+        language: str | None,
+        non_streaming_mode: bool | None,
+    ) -> tuple[str, str, bool]:
+        previous_speaker = self._runtime_config.speaker
+        if speaker is not None:
+            self._runtime_config = replace(self._runtime_config, speaker=speaker.strip() or previous_speaker)
+        selected_speaker = self._resolve_speaker()
+        self._runtime_config = replace(self._runtime_config, speaker=previous_speaker)
+        selected_language = language.strip() if language else self._runtime_config.language
+        selected_mode = (
+            self._runtime_config.non_streaming_mode
+            if non_streaming_mode is None
+            else bool(non_streaming_mode)
+        )
+        return selected_speaker, selected_language, selected_mode
 
 
 def _normalize_output_directory(path: str | Path | None) -> Path | None:
