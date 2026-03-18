@@ -193,6 +193,19 @@ QPushButton#stopButton {
     font-size: 12px;
 }
 
+QPushButton#cancelSynthesisButton {
+    padding: 3px 10px;
+    min-width: 28px;
+    color: #e74c3c;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+QPushButton#cancelSynthesisButton:hover {
+    background-color: #3a1a1a;
+    border-color: #e74c3c;
+}
+
 QPushButton#historyNavButton:disabled {
     background-color: #2e2e4a;
     border-color: #404060;

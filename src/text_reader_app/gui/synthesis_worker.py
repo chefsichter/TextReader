@@ -12,6 +12,7 @@ class SynthesisWorkerSignals(QObject):
 
     finished = Signal(object, object)
     failed = Signal(object, str)
+    cancelled = Signal(object)
 
 
 class SynthesisWorker(QRunnable):
@@ -28,13 +29,21 @@ class SynthesisWorker(QRunnable):
         self._controller = controller
         self._history_entry = history_entry
         self._request = request
+        self._cancelled = False
         self.setAutoDelete(True)
+
+    def cancel(self) -> None:
+        """Request cancellation; result is discarded when synthesis finishes."""
+        self._cancelled = True
 
     def run(self) -> None:
         try:
             result = self._synthesize()
         except Exception as exc:
             self.signals.failed.emit(self._history_entry, str(exc))
+            return
+        if self._cancelled:
+            self.signals.cancelled.emit(self._history_entry)
             return
         self.signals.finished.emit(self._history_entry, result)
 

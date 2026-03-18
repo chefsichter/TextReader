@@ -129,6 +129,10 @@ class PlayerWindow(QWidget):
         self._synthesis_progress_label = QLabel("")
         self._synthesis_progress_label.setObjectName("statusLabel")
         self._synthesis_progress_label.hide()
+        self._cancel_synthesis_button = QPushButton("✕")
+        self._cancel_synthesis_button.setObjectName("cancelSynthesisButton")
+        self._cancel_synthesis_button.setToolTip("Cancel synthesis")
+        self._cancel_synthesis_button.hide()
         self._theme_button = QPushButton("☾")
         self._theme_button.setObjectName("themeButton")
         self._theme_button.setFixedWidth(30)
@@ -263,6 +267,7 @@ class PlayerWindow(QWidget):
     def set_synthesis_progress(self, progress_percent: int, detail_text: str) -> None:
         self._synthesis_progress_bar.show()
         self._synthesis_progress_label.show()
+        self._cancel_synthesis_button.show()
         self._synthesis_progress_bar.setValue(min(max(progress_percent, 0), 100))
         self._synthesis_progress_label.setText(detail_text)
 
@@ -286,6 +291,7 @@ class PlayerWindow(QWidget):
         self._synthesis_progress_bar.setValue(0)
         self._synthesis_progress_label.hide()
         self._synthesis_progress_label.clear()
+        self._cancel_synthesis_button.hide()
 
     def set_history_position(
         self,
@@ -383,6 +389,9 @@ class PlayerWindow(QWidget):
     def connect_clear_history(self, callback: Callable[[], None]) -> None:
         self._clear_history_button.clicked.connect(callback)
 
+    def connect_cancel_synthesis(self, callback: Callable[[], None]) -> None:
+        self._cancel_synthesis_button.clicked.connect(callback)
+
     # ── Layout builders ───────────────────────────────────────────
 
     def _build_layout(self) -> None:
@@ -421,6 +430,7 @@ class PlayerWindow(QWidget):
         row.setSpacing(8)
         row.addWidget(self._synthesis_progress_bar, 1)
         row.addWidget(self._synthesis_progress_label)
+        row.addWidget(self._cancel_synthesis_button)
         return row
 
     def _build_history_panel(self) -> QFrame:

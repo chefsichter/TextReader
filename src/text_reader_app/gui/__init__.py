@@ -170,6 +170,9 @@ def _configure_player_window(player_window: PlayerWindow, runtime_context: Any) 
     player_window.connect_seek_requested(
         lambda position_ms: _seek_playback(runtime_context, position_ms),
     )
+    player_window.connect_cancel_synthesis(
+        lambda: _cancel_active_synthesis(runtime_context),
+    )
     player_window.connect_download_audio(
         lambda: _download_current_audio(runtime_context, player_window),
     )
@@ -538,6 +541,14 @@ def _start_synthesis_worker(
             worker,
         ),
     )
+    worker.signals.cancelled.connect(
+        lambda entry: _handle_synthesis_cancelled(
+            runtime_context,
+            player_window,
+            entry,
+            worker,
+        ),
+    )
     QThreadPool.globalInstance().start(worker)
 
 
@@ -570,6 +581,14 @@ def _start_regeneration_worker(
             player_window,
             entry,
             message,
+            worker,
+        ),
+    )
+    worker.signals.cancelled.connect(
+        lambda entry: _handle_synthesis_cancelled(
+            runtime_context,
+            player_window,
+            entry,
             worker,
         ),
     )
@@ -615,6 +634,24 @@ def _handle_synthesis_failure(
     player_window.set_status_text("error")
     player_window.set_preview_text(message)
     _sync_entry_actions(player_window, runtime_context, history_entry)
+
+
+def _cancel_active_synthesis(runtime_context: Any) -> None:
+    for worker in list(runtime_context.background_jobs):
+        worker.cancel()
+
+
+def _handle_synthesis_cancelled(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+    history_entry: HistoryEntry,
+    worker: SynthesisWorker,
+) -> None:
+    _end_synthesis_feedback(runtime_context, player_window)
+    _discard_background_job(runtime_context, worker)
+    _present_history_entry(runtime_context, player_window, history_entry)
+    player_window.set_status_text("cancelled")
+    _sync_media_availability(player_window, runtime_context)
 
 
 def _discard_background_job(runtime_context: Any, worker: SynthesisWorker) -> None:
