@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "text-reader-app"
+version = "0.1.0"
+description = "Tray-based desktop app for reading selected or clipboard text aloud."
+readme = "IMPLEMENTATION_PLAN.md"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6>=6.8,<7",
+]
+
+[project.scripts]
+text-reader-app = "text_reader_app.app_bootstrap:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
