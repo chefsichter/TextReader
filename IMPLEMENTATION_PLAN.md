@@ -4,7 +4,7 @@
 
 Stand: 2026-03-18
 
-Dieses Dokument beschreibt den aktuellen Architekturstand, die getroffenen Produktentscheidungen und den jetzt implementierten Umsetzungsweg fuer die Desktop-App.
+Dieses Dokument beschreibt den aktuellen Architekturstand, die getroffenen Produktentscheidungen und den implementierten Umsetzungsweg der App.
 
 ## Produktziel
 
@@ -62,14 +62,12 @@ Bereits implementiert:
 - Hintergrund-Worker fuer Synthese, damit der UI-Thread responsiv bleibt
 - Audio-Playback mit Slider, Jump und Stop
 - History-Navigation vor/zurueck
-- Linux Portal-Hotkey-Backend
-- GNOME-Shell-Hotkey-Fallback
-- lokale Command-Bridge fuer desktopseitige Shortcuts und Single-Instance-Kommandos
-- Windows-Hotkey-Backend
+- keyboard hook hotkey backend fuer Linux und Windows, modelliert nach `hotkey-transcriber`
+- lokale Command-Bridge fuer externe Trigger und Single-Instance-Kommandos
 - Launcher-Skripte fuer den aktuellen Workspace-Code
 
 Noch nicht validiert:
-- echtes Tray-/Shortcut-UAT in einer realen GNOME-Desktop-Session
+- echtes Tray-/Hotkey-/Audio-UAT in einer sichtbaren Linux-Desktop-Session
 - Windows-Backends auf einem realen Windows-System
 - Packaging jenseits der aktuellen Dev-Launcher
 
@@ -88,11 +86,11 @@ src/text_reader_app/
     tray_controller.py
     player_window.py
     settings_window.py
+    hotkey_change_dialog.py
     synthesis_worker.py
   hotkeys/
-    global_shortcut_portal.py
-    gnome_shell_hotkey.py
-    global_shortcut_windows.py
+    keyboard_hook_service.py
+    trigger_parser.py
     local_command_bridge.py
   capture/
     text_capture_service.py
@@ -117,27 +115,29 @@ src/text_reader_app/
 `app_bootstrap.py`
 - Qt-App starten
 - Runtime-Kontext aufbauen
-- Hotkey-Backend waehlen
+- Hotkey-Backend starten
 - lokale Command-Bridge starten
 - CLI-Kommandos wie `--trigger-active-source` verarbeiten
 
 `application_controller.py`
 - Persistenz und Runtime-Services orchestrieren
 - Settings lesen/schreiben
+- Hotkey nach Einstellungen neu starten
 - History-Eintraege erzeugen und aktualisieren
 - Playback-/TTS-Interaktion koordinieren
 
 `gui/`
 - Player-Fenster
 - Settings-Fenster
+- Hotkey-Capture-Dialog
 - Tray-Menue
 - Hintergrund-Worker fuer blockierende Synthese
 
 `hotkeys/`
-- Linux Portal
-- GNOME Shell Fallback
-- Windows RegisterHotKey
-- lokale Trigger-Schnittstelle fuer desktopverwaltete Shortcuts
+- Trigger-Parsing
+- Linux evdev keyboard hook
+- Windows low-level keyboard hook
+- lokale Command-Bridge
 
 `capture/`
 - Clipboard lesen
@@ -153,19 +153,12 @@ src/text_reader_app/
 
 ### Linux / Wayland
 
-Interne Hotkey-Backends:
-- XDG Global Shortcuts Portal, wenn verfuegbar
-- GNOME `GrabAccelerator` als Fallback
+Interner Hotkey-Backend:
+- evdev-basierter Keyboard-Hook ueber `/dev/input/event*`, wie im funktionierenden `hotkey-transcriber`
 
-Aktueller Desktop-Befund auf Zorin/GNOME Wayland:
-- `org.freedesktop.portal.GlobalShortcuts` fehlt
-- `org.gnome.Shell.GrabAccelerator` lehnt externe Registrierungen ab
-
-Praktischer Hotkey-Weg fuer diesen Desktop:
-- laufende App startet eine lokale Command-Bridge
-- globaler Shortcut wird desktopseitig verwaltet
-- Aufruf z. B. ueber `text-reader-app --trigger-active-source`
-- GNOME Custom Shortcut kann daher den Trigger uebernehmen
+Konsequenz:
+- der Hotkey ist nicht von XDG-Portal oder GNOME-DBus-Unterstuetzung abhaengig
+- Zugriff auf geeignete `/dev/input/event*`-Devices muss vorhanden sein
 
 Selection auf Linux:
 - best effort
@@ -176,7 +169,7 @@ Selection auf Linux:
 ### Windows
 
 Hotkey:
-- nativer RegisterHotKey-Backend
+- low-level keyboard hook, analog zu `hotkey-transcriber`
 
 Selection:
 - best effort ueber PowerShell + UI Automation des fokussierten Controls
@@ -214,19 +207,21 @@ In dieser Linux-Umgebung bereits validiert:
 - `python3 -m compileall src/text_reader_app`
 - `timeout 8s .venv/bin/text-reader-app --help`
 - `timeout 8s scripts/run_text_reader.sh --help`
+- Linux keyboard hook service started successfully
+- hotkey trigger parsing and hotkey restart after settings changes
 - Linux-Selection-Smoke-Test
 - lokale Command-Bridge
 - Clipboard-Capture + Settings-Persistenz im laufenden Qt-Eventloop
 - Offscreen-GUI-Shell-Erzeugung
 
 Noch offen:
-- echtes GNOME-Custom-Shortcut-UAT
+- echtes Linux-Hotkey-UAT in einer sichtbaren Desktop-Session
 - echtes Tray-/Audio-UAT in einer sichtbaren Desktop-Session
 - Windows-Runtime-Validierung
 
 ## Naechster sinnvoller Schritt
 
 Real-Desktop-UAT und Packaging:
-- GNOME-Custom-Shortcut gegen `scripts/trigger_text_reader.sh` pruefen
+- direkten In-App-Hotkey in einer echten Linux-Desktop-Session pruefen
 - Tray-/Player-Verhalten in einer echten Desktop-Session pruefen
 - Windows-Backends auf einem realen Windows-System validieren

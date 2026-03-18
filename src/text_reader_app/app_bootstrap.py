@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -193,58 +192,20 @@ def _local_server_name(application_name: str) -> str:
 def _build_hotkey_service(controller: Any, application_name: str) -> Any | None:
     callback = controller.handle_hotkey_activation
     trigger = controller.hotkey_trigger()
-    if sys.platform == "win32":
-        windows_service = _build_backend_service(
-            class_path=(
-                "text_reader_app.hotkeys",
-                ("WindowsGlobalHotkeyService",),
-            ),
-            application_name=application_name,
-            trigger=trigger,
-            callback=callback,
-        )
-        if _registration_is_ready(windows_service):
-            LOGGER.info("Using Windows hotkey backend.")
-        else:
-            _log_backend_unavailable("Windows hotkey backend", windows_service)
-        return windows_service
-
-    portal_service = _build_backend_service(
+    hook_service = _build_backend_service(
         class_path=(
             "text_reader_app.hotkeys",
-            ("GlobalShortcutPortalService",),
+            ("KeyboardHookHotkeyService",),
         ),
         application_name=application_name,
         trigger=trigger,
         callback=callback,
     )
-    if _registration_is_ready(portal_service):
-        LOGGER.info("Using portal hotkey backend.")
-        return portal_service
-
-    if _should_try_gnome_shell_fallback(portal_service):
-        _log_backend_unavailable("Portal hotkey backend", portal_service)
-        gnome_service = _build_backend_service(
-            class_path=(
-                "text_reader_app.hotkeys.gnome_shell_hotkey",
-                (
-                    "GnomeShellHotkeyService",
-                    "GnomeShellGlobalHotkeyService",
-                    "GnomeShellAcceleratorService",
-                ),
-            ),
-            application_name=application_name,
-            trigger=trigger,
-            callback=callback,
-        )
-        if _registration_is_ready(gnome_service):
-            LOGGER.info("Using GNOME Shell hotkey fallback backend.")
-            return gnome_service
-        _log_backend_unavailable("GNOME Shell fallback", gnome_service)
-        return gnome_service or portal_service
-
-    _log_backend_unavailable("Portal hotkey backend", portal_service)
-    return portal_service
+    if _registration_is_ready(hook_service):
+        LOGGER.info("Using keyboard hook hotkey backend.")
+        return hook_service
+    _log_backend_unavailable("Keyboard hook hotkey backend", hook_service)
+    return hook_service
 
 
 def _build_backend_service(
@@ -311,20 +272,6 @@ def _start_hotkey_service(hotkey_service: Any | None) -> None:
             return
 
 
-def _should_try_gnome_shell_fallback(portal_service: Any | None) -> bool:
-    return _is_gnome_wayland_session() or _registration_is_unavailable(portal_service)
-
-
-def _is_gnome_wayland_session() -> bool:
-    session_type = os.environ.get("XDG_SESSION_TYPE", "").strip().lower()
-    current_desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").strip().lower()
-    desktop_session = os.environ.get("DESKTOP_SESSION", "").strip().lower()
-    is_wayland = session_type == "wayland"
-    desktop_tokens = {token for token in current_desktop.split(":") if token}
-    desktop_tokens.add(desktop_session)
-    return is_wayland and any(token in {"gnome", "zorin"} for token in desktop_tokens)
-
-
 def _registration_is_ready(hotkey_service: Any | None) -> bool:
     registration = _service_registration(hotkey_service)
     if registration is None:
@@ -333,15 +280,6 @@ def _registration_is_ready(hotkey_service: Any | None) -> bool:
     if isinstance(ok, bool):
         return ok
     return str(getattr(registration, "status", "")).lower() == "ready"
-
-
-def _registration_is_unavailable(hotkey_service: Any | None) -> bool:
-    registration = _service_registration(hotkey_service)
-    if registration is None:
-        return True
-    return str(getattr(registration, "status", "")).lower() == "not_available"
-
-
 def _service_registration(hotkey_service: Any | None) -> Any | None:
     if hotkey_service is None:
         return None

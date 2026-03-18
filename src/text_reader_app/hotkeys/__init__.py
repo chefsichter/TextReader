@@ -1,20 +1,17 @@
-"""Global hotkey backends for TextReader."""
+"""Public hotkey helpers used by the active TextReader runtime."""
 
-from .global_shortcut_portal import (
-    GlobalShortcutPortalService,
-    GlobalShortcutPortalStatus,
-    GlobalShortcutRegistration,
-)
-from .global_shortcut_windows import WindowsGlobalHotkeyService
-from .gnome_shell_hotkey import GnomeShellHotkeyService
+try:
+    from .keyboard_hook_service import KeyboardHookHotkeyService
+except ImportError:  # pragma: no cover - depends on optional OS packages
+    KeyboardHookHotkeyService = None
+
 from .local_command_bridge import LocalCommandServer, send_local_command
+from .trigger_parser import format_hotkey_trigger, parse_hotkey_trigger
 
 __all__ = [
-    "GnomeShellHotkeyService",
-    "GlobalShortcutPortalService",
-    "GlobalShortcutPortalStatus",
-    "GlobalShortcutRegistration",
+    "KeyboardHookHotkeyService",
     "LocalCommandServer",
-    "WindowsGlobalHotkeyService",
+    "format_hotkey_trigger",
+    "parse_hotkey_trigger",
     "send_local_command",
 ]

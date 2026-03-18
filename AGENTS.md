@@ -76,15 +76,15 @@ Relevant local files:
 
 ### Linux / Wayland
 
-- Use the XDG Global Shortcuts Portal for the global hotkey where available.
+- Use the hotkey-transcriber-style evdev keyboard hook as the primary Linux hotkey backend.
 - Reading selected text on Wayland is a best-effort feature.
 - Do not silently fall back from `selection` mode to `clipboard` mode.
 - If selection access fails, show a visible error.
-- On GNOME/Zorin Wayland, use the local command bridge plus a desktop-managed shortcut when in-process hotkey registration is unavailable.
+- The local command bridge still exists for external triggering and single-instance control, but it is not the primary hotkey path.
 
 ### Windows
 
-- Implemented hotkey backend: native Windows global hotkey support
+- Implemented hotkey backend: low-level keyboard hook aligned with hotkey-transcriber
 - Implemented selection backend: PowerShell-driven UI Automation best effort
 - ROCm / PyTorch on Windows should be validated separately from Linux
 
@@ -119,16 +119,13 @@ As of 2026-03-18 the repository is beyond the original scaffold:
 - real Qwen WAV synthesis is implemented and validated on the PT71 ROCm environment
 - `.venv` points to `tests/venv_pt71`
 - the app startup hang on Linux/PipeWire was fixed by deferring service initialization until the Qt event loop is running
-- a first Linux hotkey portal backend exists
-- runtime hotkey backend selection exists
+- the app now uses the hotkey-transcriber-style keyboard hook backend for Linux and Windows
 - Linux selection capture, settings UI, history navigation, and background synthesis are implemented
 - a local command bridge exists for desktop-managed shortcuts and single-instance commands
 - launcher scripts exist under `scripts/`
 
 Known in-progress area:
-- on the current Zorin/GNOME Wayland desktop, both known Linux hotkey paths currently degrade cleanly to "not available":
-  - the XDG portal backend reports that `org.freedesktop.portal.GlobalShortcuts` is missing
-  - `org.gnome.Shell.GrabAccelerator` rejects external registrations
+- runtime validation of the Windows keyboard hook path still needs a real Windows machine
 
 When resuming, compare:
 - committed history in `git log`

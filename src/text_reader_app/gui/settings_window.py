@@ -11,12 +11,15 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
+
+from text_reader_app.hotkeys import format_hotkey_trigger
+
+from .hotkey_change_dialog import show_hotkey_dialog
 
 
 LoadCallback = Callable[[], "SettingsFormState | None"]
@@ -53,12 +56,9 @@ class SettingsWindow(QWidget):
         super().__init__()
         self._callbacks = callbacks or SettingsWindowCallbacks()
         self._status_label = QLabel("Settings ready.")
-        self._guidance_label = QLabel(
-            "On GNOME/Wayland, bind a desktop shortcut to "
-            "`text-reader-app --trigger-active-source` when internal hotkey registration is unavailable.",
-        )
         self._capture_mode_box = QComboBox()
-        self._hotkey_input = QLineEdit()
+        self._hotkey_label = QLabel("Alt+L")
+        self._hotkey_button = QPushButton("Change")
         self._jump_seconds_box = QSpinBox()
         self._voice_box = QComboBox()
         self._language_box = QComboBox()
@@ -70,7 +70,7 @@ class SettingsWindow(QWidget):
 
         return SettingsFormState(
             capture_mode=self._capture_mode_box.currentData() or "clipboard",
-            hotkey_trigger=self._hotkey_input.text().strip() or "Alt+L",
+            hotkey_trigger=self._hotkey_label.text().strip() or "Alt+L",
             jump_seconds=self._jump_seconds_box.value(),
             voice=self._voice_box.currentText().strip() or "serena",
             language=self._language_box.currentText().strip() or "english",
@@ -80,7 +80,7 @@ class SettingsWindow(QWidget):
         """Populate the form from a settings snapshot."""
 
         self._select_capture_mode(state.capture_mode)
-        self._hotkey_input.setText(state.hotkey_trigger)
+        self._hotkey_label.setText(format_hotkey_trigger(state.hotkey_trigger))
         self._jump_seconds_box.setValue(max(1, state.jump_seconds))
         self._select_combo_text(self._voice_box, state.voice)
         self._select_combo_text(self._language_box, state.language)
@@ -118,7 +118,6 @@ class SettingsWindow(QWidget):
         self._configure_controls()
         layout = QVBoxLayout()
         layout.addLayout(self._build_form_layout())
-        layout.addWidget(self._build_guidance_label())
         layout.addWidget(self._status_label)
         layout.addLayout(self._build_button_row())
         self.setLayout(layout)
@@ -126,7 +125,8 @@ class SettingsWindow(QWidget):
     def _configure_controls(self) -> None:
         self._capture_mode_box.addItem("Clipboard", "clipboard")
         self._capture_mode_box.addItem("Selection", "selection")
-        self._hotkey_input.setPlaceholderText("Alt+L")
+        self._hotkey_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._hotkey_button.clicked.connect(self._change_hotkey)
         self._jump_seconds_box.setRange(1, 60)
         self._jump_seconds_box.setSuffix(" s")
         self._voice_box.addItems(
@@ -140,16 +140,19 @@ class SettingsWindow(QWidget):
         form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         form.addRow("Capture mode", self._capture_mode_box)
-        form.addRow("Hotkey", self._hotkey_input)
+        form.addRow("Hotkey", self._build_hotkey_row())
         form.addRow("Jump seconds", self._jump_seconds_box)
         form.addRow("Voice", self._voice_box)
         form.addRow("Language", self._language_box)
         return form
 
-    def _build_guidance_label(self) -> QLabel:
-        self._guidance_label.setWordWrap(True)
-        self._guidance_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        return self._guidance_label
+    def _build_hotkey_row(self) -> QWidget:
+        container = QWidget(self)
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(self._hotkey_label, 1)
+        row.addWidget(self._hotkey_button)
+        return container
 
     def _build_button_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
@@ -183,3 +186,13 @@ class SettingsWindow(QWidget):
             combo_box.setCurrentIndex(index)
             return
         combo_box.setEditText(value)
+
+    def _change_hotkey(self) -> None:
+        updated_trigger = show_hotkey_dialog(
+            parent=self,
+            current_trigger=self._hotkey_label.text(),
+        )
+        if updated_trigger is None:
+            return
+        self._hotkey_label.setText(updated_trigger)
+        self.set_status_text("Hotkey updated. Save to apply it.")

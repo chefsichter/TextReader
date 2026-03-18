@@ -135,7 +135,27 @@ class ApplicationController:
             speaker=normalized_preferences.voice,
             language=normalized_preferences.language,
         )
+        self.restart_hotkey_service(normalized_preferences.hotkey_trigger)
         return normalized_preferences
+
+    def restart_hotkey_service(self, trigger: str) -> None:
+        """Restart the active hotkey service with the updated trigger."""
+
+        if self.hotkey_service is None:
+            return
+        restart = getattr(self.hotkey_service, "restart", None)
+        if callable(restart):
+            restart(trigger)
+            return
+        stop = getattr(self.hotkey_service, "stop", None)
+        start = getattr(self.hotkey_service, "start", None)
+        if callable(stop):
+            stop()
+        if callable(start):
+            start(
+                callback=self.handle_hotkey_activation,
+                preferred_trigger=trigger,
+            )
 
     def handle_hotkey_activation(self) -> tuple[HistoryEntry, QwenSynthesisResult]:
         """Run the configured active-source capture flow."""
