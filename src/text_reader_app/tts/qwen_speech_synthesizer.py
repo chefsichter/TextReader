@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from array import array
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -81,6 +82,8 @@ class QwenSpeechSynthesizer:
 
         if self._prepare_result is not None:
             return self._prepare_result
+
+        _apply_env_vars(self._runtime_config)
 
         try:
             import torch
@@ -235,3 +238,12 @@ def _to_pcm16_bytes_without_numpy(samples: Any) -> bytes:
 def _float_sample_to_int16(sample: float) -> int:
     clipped = min(max(sample, -1.0), 1.0)
     return int(clipped * 32767.0)
+
+
+def _apply_env_vars(config: "QwenRuntimeConfig") -> None:
+    """Apply benchmark-derived env variables before torch is imported."""
+
+    if config.hsa_enable_sdma is not None:
+        os.environ["HSA_ENABLE_SDMA"] = str(config.hsa_enable_sdma)
+    if config.disable_tunableop:
+        os.environ["PYTORCH_TUNABLEOP_ENABLED"] = "0"
