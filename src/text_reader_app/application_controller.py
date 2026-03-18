@@ -213,6 +213,11 @@ class ApplicationController:
 
         return self.qwen_speech_synthesizer.prepare()
 
+    def cancel_current_synthesis(self) -> None:
+        """Kill the active TTS subprocess and restart it in the background."""
+
+        self.qwen_speech_synthesizer.cancel_synthesis()
+
     def synthesize(self, text: str) -> QwenSynthesisResult:
         """Attempt synthesis and load the resulting audio if one exists."""
 

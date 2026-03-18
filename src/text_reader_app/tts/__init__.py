@@ -6,11 +6,13 @@ from .qwen_speech_synthesizer import (
     QwenSynthesisResult,
     QwenSynthesizerStatus,
 )
+from .tts_subprocess import SynthesisCancelledError
 
 __all__ = [
     "QwenRuntimeConfig",
     "QwenSpeechSynthesizer",
     "QwenSynthesisResult",
     "QwenSynthesizerStatus",
+    "SynthesisCancelledError",
     "build_default_qwen_runtime_config",
 ]

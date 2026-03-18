@@ -1,8 +1,7 @@
-"""Qwen synthesizer shell with lazy dependency handling and WAV output."""
+"""Qwen synthesizer shell backed by a persistent TTS subprocess."""
 
 from __future__ import annotations
 
-import os
 from array import array
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -16,6 +15,7 @@ from .qwen_runtime_config import (
     QwenRuntimeConfig,
     build_default_qwen_runtime_config,
 )
+from .tts_subprocess import SynthesisCancelledError, TTSModelServer
 
 
 class QwenSynthesizerStatus(StrEnum):
@@ -43,12 +43,11 @@ class QwenSynthesisResult:
     @property
     def ok(self) -> bool:
         """Return whether the operation succeeded."""
-
         return self.status == QwenSynthesizerStatus.READY
 
 
 class QwenSpeechSynthesizer:
-    """Lazy shell around qwen_tts that never crashes the app on import."""
+    """Shell around a persistent TTS subprocess.  Never imports torch in the main process."""
 
     def __init__(
         self,
@@ -57,19 +56,18 @@ class QwenSpeechSynthesizer:
     ) -> None:
         self._runtime_config = runtime_config or build_default_qwen_runtime_config()
         self._output_directory = _normalize_output_directory(output_directory)
-        self._backend: Any | None = None
-        self._prepare_result: QwenSynthesisResult | None = None
+        self._server: TTSModelServer | None = None
+        # Only cache non-recoverable failures (NOT_CONFIGURED, import errors).
+        self._fatal_result: QwenSynthesisResult | None = None
 
     @property
     def runtime_config(self) -> QwenRuntimeConfig:
         """Return the configured runtime defaults."""
-
         return self._runtime_config
 
     @property
     def output_directory(self) -> Path | None:
         """Return the configured default output directory."""
-
         return self._output_directory
 
     def update_runtime_preferences(
@@ -79,8 +77,11 @@ class QwenSpeechSynthesizer:
         language: str,
         non_streaming_mode: bool | None = None,
     ) -> None:
-        """Apply persisted user choices and invalidate the lazy backend state."""
+        """Apply persisted user choices.
 
+        Speaker, language, and mode are passed per-request so the subprocess
+        does not need to be restarted when these change.
+        """
         self._runtime_config = replace(
             self._runtime_config,
             speaker=speaker.strip() or self._runtime_config.speaker,
@@ -91,62 +92,39 @@ class QwenSpeechSynthesizer:
                 else bool(non_streaming_mode)
             ),
         )
-        self._backend = None
-        self._prepare_result = None
 
     def prepare(self) -> QwenSynthesisResult:
-        """Attempt to import and initialize the Qwen backend lazily."""
+        """Ensure the TTS subprocess is running and the model is loaded.
 
-        if self._prepare_result is not None:
-            return self._prepare_result
-
-        _apply_env_vars(self._runtime_config)
+        Blocks until the model is ready.  Safe to call from a worker thread.
+        Raises ``SynthesisCancelledError`` if cancel() is called while waiting.
+        """
+        if self._fatal_result is not None:
+            return self._fatal_result
 
         try:
-            import torch
-            from qwen_tts import Qwen3TTSModel
+            import qwen_tts as _qt  # noqa: F401
+            import torch as _t  # noqa: F401
         except ImportError:
-            self._prepare_result = QwenSynthesisResult(
+            self._fatal_result = QwenSynthesisResult(
                 status=QwenSynthesizerStatus.NOT_CONFIGURED,
                 message="qwen_tts or torch is not installed in the active environment.",
             )
-            return self._prepare_result
+            return self._fatal_result
 
-        try:
-            self._backend = Qwen3TTSModel.from_pretrained(
-                self._runtime_config.model_id,
-                dtype=_resolve_torch_dtype(torch, self._runtime_config.dtype),
-                device_map="cuda",
-                attn_implementation=self._runtime_config.attention_implementation,
-            )
-        except Exception as exc:
-            self._prepare_result = QwenSynthesisResult(
+        if self._server is None:
+            self._server = TTSModelServer(self._runtime_config)
+
+        error = self._server.ensure_ready()  # may raise SynthesisCancelledError
+        if error:
+            return QwenSynthesisResult(
                 status=QwenSynthesizerStatus.ERROR,
-                message=f"Qwen backend could not be prepared: {exc}",
+                message=f"Qwen backend could not be prepared: {error}",
             )
-            return self._prepare_result
-
-        if self._runtime_config.enable_torch_compile:
-            try:
-                self._backend = torch.compile(self._backend)
-            except Exception:
-                pass
-
-        try:
-            self._backend.generate_custom_voice(
-                "Warmup.",
-                speaker=self._runtime_config.speaker,
-                language=self._runtime_config.language,
-                non_streaming_mode=True,
-            )
-        except Exception:
-            pass
-
-        self._prepare_result = QwenSynthesisResult(
+        return QwenSynthesisResult(
             status=QwenSynthesizerStatus.READY,
             message="Qwen backend prepared successfully.",
         )
-        return self._prepare_result
 
     def synthesize(
         self,
@@ -157,15 +135,17 @@ class QwenSpeechSynthesizer:
         language: str | None = None,
         non_streaming_mode: bool | None = None,
     ) -> QwenSynthesisResult:
-        """Synthesize text into a WAV file under the requested output directory."""
+        """Synthesize text into a WAV file.
 
+        Raises ``SynthesisCancelledError`` when synthesis is cancelled mid-run.
+        """
         if not text.strip():
             return QwenSynthesisResult(
                 status=QwenSynthesizerStatus.ERROR,
                 message="Cannot synthesize empty text.",
             )
 
-        prepare_result = self.prepare()
+        prepare_result = self.prepare()  # may raise SynthesisCancelledError
         if not prepare_result.ok:
             return prepare_result
 
@@ -179,27 +159,28 @@ class QwenSpeechSynthesizer:
                 message="No output directory was provided for synthesized audio.",
             )
 
+        selected_speaker, selected_language, selected_mode = (
+            self._resolve_generation_preferences(
+                speaker=speaker,
+                language=language,
+                non_streaming_mode=non_streaming_mode,
+            )
+        )
+
         started_at = perf_counter()
+        # May raise SynthesisCancelledError or RuntimeError.
+        audio, sample_rate = self._server.synthesize(
+            text, selected_speaker, selected_language, selected_mode,
+        )
+        elapsed_ms = int((perf_counter() - started_at) * 1000)
+
         try:
-            selected_speaker, selected_language, selected_non_streaming_mode = (
-                self._resolve_generation_preferences(
-                    speaker=speaker,
-                    language=language,
-                    non_streaming_mode=non_streaming_mode,
-                )
-            )
-            wavs, sample_rate = self._backend.generate_custom_voice(
-                text,
-                speaker=selected_speaker,
-                language=selected_language,
-                non_streaming_mode=selected_non_streaming_mode,
-            )
             audio_path = _build_output_path(target_directory)
-            _write_wav_file(audio_path, wavs[0], sample_rate)
+            _write_wav_file(audio_path, audio, sample_rate)
         except Exception as exc:
             return QwenSynthesisResult(
                 status=QwenSynthesizerStatus.ERROR,
-                message=f"Qwen synthesis failed: {exc}",
+                message=f"Qwen synthesis failed while writing audio: {exc}",
             )
 
         return QwenSynthesisResult(
@@ -210,20 +191,15 @@ class QwenSpeechSynthesizer:
             speaker=selected_speaker,
             language=selected_language,
             model_id=self._runtime_config.model_id,
-            elapsed_ms=int((perf_counter() - started_at) * 1000),
-            audio_duration_ms=_audio_duration_ms(wavs[0], sample_rate),
+            elapsed_ms=elapsed_ms,
+            audio_duration_ms=_audio_duration_ms(audio, sample_rate),
         )
 
-    def _resolve_speaker(self) -> str:
-        speaker = self._runtime_config.speaker
-        try:
-            supported = self._backend.model.get_supported_speakers()
-        except Exception:
-            return speaker
-
-        if speaker in supported:
-            return speaker
-        return list(supported)[0] if supported else speaker
+    def cancel_synthesis(self) -> None:
+        """Kill the subprocess immediately and start reloading in the background."""
+        if self._server is not None:
+            self._server.cancel()
+            self._server.restart_async()
 
     def _resolve_generation_preferences(
         self,
@@ -232,12 +208,8 @@ class QwenSpeechSynthesizer:
         language: str | None,
         non_streaming_mode: bool | None,
     ) -> tuple[str, str, bool]:
-        previous_speaker = self._runtime_config.speaker
-        if speaker is not None:
-            self._runtime_config = replace(self._runtime_config, speaker=speaker.strip() or previous_speaker)
-        selected_speaker = self._resolve_speaker()
-        self._runtime_config = replace(self._runtime_config, speaker=previous_speaker)
-        selected_language = language.strip() if language else self._runtime_config.language
+        selected_speaker = (speaker.strip() if speaker else None) or self._runtime_config.speaker
+        selected_language = (language.strip() if language else None) or self._runtime_config.language
         selected_mode = (
             self._runtime_config.non_streaming_mode
             if non_streaming_mode is None
@@ -245,6 +217,8 @@ class QwenSpeechSynthesizer:
         )
         return selected_speaker, selected_language, selected_mode
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _normalize_output_directory(path: str | Path | None) -> Path | None:
     if path is None:
@@ -263,15 +237,6 @@ def _resolve_target_directory(
         return None
     target_directory.mkdir(parents=True, exist_ok=True)
     return target_directory
-
-
-def _resolve_torch_dtype(torch_module: Any, dtype_name: str) -> Any:
-    dtype_map = {
-        "bfloat16": torch_module.bfloat16,
-        "float16": torch_module.float16,
-        "float32": torch_module.float32,
-    }
-    return dtype_map.get(dtype_name, torch_module.bfloat16)
 
 
 def _build_output_path(output_directory: Path) -> Path:
@@ -301,7 +266,6 @@ def _audio_duration_ms(samples: Any, sample_rate: int) -> int:
 def _to_pcm16_bytes(samples: Any) -> bytes:
     try:
         import numpy as np
-
         normalized = np.asarray(samples, dtype=np.float32).reshape(-1)
         clipped = np.clip(normalized, -1.0, 1.0)
         return (clipped * 32767.0).astype(np.int16).tobytes()
@@ -319,19 +283,3 @@ def _to_pcm16_bytes_without_numpy(samples: Any) -> bytes:
 def _float_sample_to_int16(sample: float) -> int:
     clipped = min(max(sample, -1.0), 1.0)
     return int(clipped * 32767.0)
-
-
-def _apply_env_vars(config: "QwenRuntimeConfig") -> None:
-    """Apply benchmark-derived env variables before torch is imported."""
-
-    if config.hsa_enable_sdma is not None:
-        os.environ["HSA_ENABLE_SDMA"] = str(config.hsa_enable_sdma)
-    if config.disable_tunableop:
-        os.environ["PYTORCH_TUNABLEOP_ENABLED"] = "0"
-    if config.miopen_cache_dir is not None:
-        config.miopen_cache_dir.mkdir(parents=True, exist_ok=True)
-        os.environ["MIOPEN_USER_DB_PATH"] = str(config.miopen_cache_dir)
-        os.environ.setdefault("MIOPEN_FIND_MODE", "2")
-    if config.torch_compile_cache_dir is not None:
-        config.torch_compile_cache_dir.mkdir(parents=True, exist_ok=True)
-        os.environ["TORCHINDUCTOR_CACHE_DIR"] = str(config.torch_compile_cache_dir)
