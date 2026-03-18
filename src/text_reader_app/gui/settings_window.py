@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
     QHBoxLayout,
+    QToolButton,
     QLabel,
     QPushButton,
     QSpinBox,
@@ -70,9 +71,7 @@ class SettingsWindow(QWidget):
         self._hotkey_button = QPushButton("Change")
         self._jump_seconds_box = QSpinBox()
         self._voice_box = QComboBox()
-        self._reader_info_label = QLabel("")
-        self._reader_info_label.setObjectName("readerInfoLabel")
-        self._reader_info_label.setWordWrap(True)
+        self._reader_info_button = QToolButton()
         self._language_box = QComboBox()
         self._synthesis_mode_box = QComboBox()
         self._theme_box = QComboBox()
@@ -180,6 +179,10 @@ class SettingsWindow(QWidget):
         self._jump_seconds_box.setSuffix(" s")
         self._voice_box.addItems(list(READER_OPTIONS))
         self._voice_box.setEditable(True)
+        self._reader_info_button.setText("i")
+        self._reader_info_button.setToolTip("Reader info")
+        self._reader_info_button.setAutoRaise(True)
+        self._reader_info_button.setCursor(Qt.CursorShape.WhatsThisCursor)
         self._voice_box.currentTextChanged.connect(self._update_reader_info)
         self._language_box.addItems(list(LANGUAGE_OPTIONS))
         self._language_box.setEditable(True)
@@ -194,8 +197,7 @@ class SettingsWindow(QWidget):
         form.addRow("Capture mode", self._capture_mode_box)
         form.addRow("Hotkey", self._build_hotkey_row())
         form.addRow("Jump seconds", self._jump_seconds_box)
-        form.addRow("Reader", self._voice_box)
-        form.addRow("", self._reader_info_label)
+        form.addRow("Reader", self._build_reader_row())
         form.addRow("Language", self._language_box)
         form.addRow("Synthesis", self._synthesis_mode_box)
         form.addRow("Theme", self._theme_box)
@@ -207,6 +209,15 @@ class SettingsWindow(QWidget):
         row.setContentsMargins(0, 0, 0, 0)
         row.addWidget(self._hotkey_label, 1)
         row.addWidget(self._hotkey_button)
+        return container
+
+    def _build_reader_row(self) -> QWidget:
+        container = QWidget(self)
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+        row.addWidget(self._voice_box, 1)
+        row.addWidget(self._reader_info_button)
         return container
 
     def _build_button_row(self) -> QHBoxLayout:
@@ -255,8 +266,8 @@ class SettingsWindow(QWidget):
 
     def _update_reader_info(self, reader: str) -> None:
         info_text = reader_info_text(reader)
-        self._reader_info_label.setText(info_text)
         self._voice_box.setToolTip(info_text)
+        self._reader_info_button.setToolTip(info_text or "Reader info")
 
     def _change_hotkey(self) -> None:
         updated_trigger = show_hotkey_dialog(

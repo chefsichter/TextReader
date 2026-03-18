@@ -128,3 +128,14 @@ def reader_info_text(reader: str) -> str:
     if info is None:
         return ""
     return f"{info.label}: {info.voice_description} Native language: {info.native_language}"
+
+
+def language_info_text(language: str) -> str:
+    """Return a human-friendly info string for one synthesis language."""
+
+    normalized = language.strip()
+    if not normalized:
+        return ""
+    if normalized.lower() == "auto":
+        return "Synthesis language: Auto detect."
+    return f"Synthesis language: {format_preference_label(normalized)}"

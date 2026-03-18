@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .preferences_options import language_info_text, reader_info_text
+
 _MAX_DOTS = 14
 _PANEL_BG_LIGHT = "#ffffff"
 _PANEL_BG_DARK = "#22223a"
@@ -157,14 +159,26 @@ class PlayerWindow(QWidget):
         self._language_badge.hide()
         self._timestamp_label = QLabel("")
         self._timestamp_label.setObjectName("entryTimestamp")
-        self._edit_regenerate_button = QPushButton("Edit & regenerate")
+        self._edit_regenerate_button = QPushButton("✎")
         self._edit_regenerate_button.setObjectName("historyActionButton")
-        self._download_audio_button = QPushButton("Download audio")
+        self._edit_regenerate_button.setToolTip(
+            "Edit the current text, reader, or language and regenerate audio.",
+        )
+        self._download_audio_button = QPushButton("⬇")
         self._download_audio_button.setObjectName("historyActionButton")
-        self._delete_entry_button = QPushButton("Delete entry")
+        self._download_audio_button.setToolTip(
+            "Save the generated audio file for the current entry to another location.",
+        )
+        self._delete_entry_button = QPushButton("🗑")
         self._delete_entry_button.setObjectName("historyActionButton")
-        self._clear_history_button = QPushButton("Delete all")
+        self._delete_entry_button.setToolTip(
+            "Delete the current entry and its generated audio file.",
+        )
+        self._clear_history_button = QPushButton("🧹")
         self._clear_history_button.setObjectName("historyActionButton")
+        self._clear_history_button.setToolTip(
+            "Delete all saved entries and all generated audio files after confirmation.",
+        )
         self._preview_area = _PreviewArea()
 
         self._build_layout()
@@ -251,7 +265,9 @@ class PlayerWindow(QWidget):
         self._next_history_button.setEnabled(has_next)
 
     def set_entry_source_text(self, text: str) -> None:
-        self._source_badge.setText(text.strip() or "-")
+        normalized = text.strip() or "-"
+        self._source_badge.setText(normalized)
+        self._source_badge.setToolTip(f"Source: {normalized}" if normalized != "-" else "")
 
     def set_entry_context_text(self, text: str) -> None:
         """Parse 'timestamp | voice=X | language=Y' and show as badges."""
@@ -259,8 +275,10 @@ class PlayerWindow(QWidget):
         self._timestamp_label.setText(timestamp)
         self._voice_badge.setText(voice)
         self._voice_badge.setVisible(bool(voice))
+        self._voice_badge.setToolTip(reader_info_text(voice))
         self._language_badge.setText(language)
         self._language_badge.setVisible(bool(language))
+        self._language_badge.setToolTip(language_info_text(language))
 
     def set_theme(self, theme: str) -> None:
         self._theme_button.setText("☀" if theme == "dark" else "☾")
