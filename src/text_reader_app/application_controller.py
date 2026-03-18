@@ -28,6 +28,7 @@ class ApplicationController:
     audio_playback_controller: AudioPlaybackController
     qwen_speech_synthesizer: QwenSpeechSynthesizer
     runtime_paths: AppRuntimePaths
+    hotkey_service: object | None = None
 
     def capture_mode(self) -> str:
         """Return the persisted active capture mode."""
@@ -56,6 +57,29 @@ class ApplicationController:
             return max(1, int(raw_value or "5"))
         except ValueError:
             return 5
+
+    def hotkey_trigger(self) -> str:
+        """Return the configured global hotkey trigger string."""
+
+        return self.settings_repository.get_value("hotkey_trigger", "Alt+L") or "Alt+L"
+
+    def set_hotkey_trigger(self, trigger: str) -> str:
+        """Persist the configured global hotkey trigger."""
+
+        normalized_trigger = trigger.strip() or "Alt+L"
+        self.settings_repository.set("hotkey_trigger", normalized_trigger)
+        return normalized_trigger
+
+    def handle_hotkey_activation(self) -> tuple[HistoryEntry, QwenSynthesisResult]:
+        """Run the configured active-source capture flow."""
+
+        return self.process_capture(self.capture_mode())
+
+    def attach_hotkey_service(self, hotkey_service: object | None) -> object | None:
+        """Retain the active hotkey service when a backend is available."""
+
+        self.hotkey_service = hotkey_service
+        return hotkey_service
 
     def prepare(self) -> QwenSynthesisResult:
         """Expose the lazy synthesizer preparation for future callers."""
@@ -155,6 +179,7 @@ def _ensure_default_settings(controller: ApplicationController) -> None:
     defaults = {
         "capture_mode": CaptureMode.CLIPBOARD.value,
         "jump_seconds": "5",
+        "hotkey_trigger": "Alt+L",
         "voice": controller.qwen_speech_synthesizer.runtime_config.speaker,
         "language": controller.qwen_speech_synthesizer.runtime_config.language,
     }

@@ -15,6 +15,7 @@ class AppRuntimePaths:
     data_directory: Path
     database_path: Path
     audio_cache_directory: Path
+    hotkey_cache_directory: Path
 
 
 def build_runtime_paths(application_name: str) -> AppRuntimePaths:
@@ -22,11 +23,14 @@ def build_runtime_paths(application_name: str) -> AppRuntimePaths:
 
     data_directory = _resolve_data_directory(application_name)
     audio_cache_directory = data_directory / "audio_cache"
+    hotkey_cache_directory = data_directory / "hotkeys"
     audio_cache_directory.mkdir(parents=True, exist_ok=True)
+    hotkey_cache_directory.mkdir(parents=True, exist_ok=True)
     return AppRuntimePaths(
         data_directory=data_directory,
         database_path=data_directory / "text_reader.sqlite3",
         audio_cache_directory=audio_cache_directory,
+        hotkey_cache_directory=hotkey_cache_directory,
     )
 
 

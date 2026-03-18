@@ -27,9 +27,11 @@ class RuntimeContext:
     audio_playback_controller: Any
     qwen_speech_synthesizer: Any
     application_controller: Any
+    hotkey_service: Any | None
     app_runtime_paths: AppRuntimePaths
     capture_mode: str
     jump_seconds: int
+    hotkey_trigger: str
 
 
 def configure_logging() -> None:
@@ -61,6 +63,10 @@ def build_runtime_context() -> RuntimeContext:
 
     runtime_paths = build_runtime_paths(app.applicationName())
     controller = build_application_controller(runtime_paths)
+    hotkey_service = _build_hotkey_service(
+        controller=controller,
+        application_name=app.applicationName(),
+    )
     return RuntimeContext(
         settings_repository=controller.settings_repository,
         history_repository=controller.history_repository,
@@ -68,9 +74,11 @@ def build_runtime_context() -> RuntimeContext:
         audio_playback_controller=controller.audio_playback_controller,
         qwen_speech_synthesizer=controller.qwen_speech_synthesizer,
         application_controller=controller,
+        hotkey_service=controller.attach_hotkey_service(hotkey_service),
         app_runtime_paths=runtime_paths,
         capture_mode=controller.capture_mode(),
         jump_seconds=controller.jump_seconds(),
+        hotkey_trigger=controller.hotkey_trigger(),
     )
 
 
@@ -118,3 +126,52 @@ def main(argv: list[str] | None = None) -> int:
     """Console script entry point."""
 
     return run(argv)
+
+
+def _build_hotkey_service(controller: Any, application_name: str) -> Any | None:
+    try:
+        from text_reader_app.hotkeys import GlobalShortcutPortalService
+    except ImportError:
+        LOGGER.info("Hotkey backend not available yet; continuing without it.")
+        return None
+
+    callback = controller.handle_hotkey_activation
+    trigger = controller.hotkey_trigger()
+    hotkey_service = _instantiate_hotkey_service(
+        hotkey_class=GlobalShortcutPortalService,
+        application_name=application_name,
+        trigger=trigger,
+        callback=callback,
+    )
+    _start_hotkey_service(hotkey_service)
+    return hotkey_service
+
+
+def _instantiate_hotkey_service(
+    hotkey_class: type,
+    application_name: str,
+    trigger: str,
+    callback: Any,
+) -> Any:
+    try:
+        return hotkey_class(
+            application_name=application_name,
+            preferred_trigger=trigger,
+            on_activated=callback,
+        )
+    except TypeError:
+        return hotkey_class(
+            preferred_trigger=trigger,
+            on_activated=callback,
+        )
+
+
+def _start_hotkey_service(hotkey_service: Any | None) -> None:
+    if hotkey_service is None:
+        return
+
+    for method_name in ("start", "register"):
+        method = getattr(hotkey_service, method_name, None)
+        if callable(method):
+            method()
+            return
