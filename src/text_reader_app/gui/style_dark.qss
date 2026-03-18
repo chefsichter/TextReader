@@ -34,7 +34,6 @@ QLabel {
 QLabel#positionLabel {
     color: #9090b8;
     font-size: 12px;
-    font-variant-numeric: tabular-nums;
 }
 
 QLabel#statusLabel {
@@ -63,8 +62,8 @@ QLabel#sourceChip {
     background-color: #2e2e50;
     color: #a89cf8;
     border: 1px solid #3e3e68;
-    border-radius: 10px;
-    padding: 1px 8px;
+    border-radius: 12px;
+    padding: 2px 10px;
     font-size: 11px;
     font-weight: 600;
 }
@@ -73,8 +72,8 @@ QLabel#voiceBadge {
     background-color: #14532d;
     color: #4ade80;
     border: 1px solid #166534;
-    border-radius: 10px;
-    padding: 1px 8px;
+    border-radius: 12px;
+    padding: 2px 10px;
     font-size: 11px;
     font-weight: 600;
 }
@@ -83,8 +82,8 @@ QLabel#languageBadge {
     background-color: #431407;
     color: #fb923c;
     border: 1px solid #7c2d12;
-    border-radius: 10px;
-    padding: 1px 8px;
+    border-radius: 12px;
+    padding: 2px 10px;
     font-size: 11px;
     font-weight: 600;
 }
@@ -162,25 +161,6 @@ QPushButton#playPauseButton:disabled {
     color: #505068;
 }
 
-/* ─── Stop-Button ────────────────────────────────────────── */
-QPushButton#stopButton {
-    background-color: transparent;
-    color: #9090b8;
-    border: 1px solid #404060;
-    border-radius: 6px;
-    padding: 5px 14px;
-    min-height: 28px;
-}
-
-QPushButton#stopButton:hover {
-    background-color: #2e2e4a;
-    color: #e4e4f4;
-}
-
-QPushButton#stopButton:disabled {
-    color: #505068;
-}
-
 /* ─── Save-Button (Primäraktion im Settings) ────────────── */
 QPushButton#primaryButton {
     background-color: #6c5ce7;
@@ -197,9 +177,10 @@ QPushButton#primaryButton:pressed {
     background-color: #5a4bd0;
 }
 
-/* ─── Kleine Nav/Jump-Buttons ───────────────────────────── */
+/* ─── Kleine Nav/Jump/Stop-Buttons ──────────────────────── */
 QPushButton#jumpButton,
-QPushButton#historyNavButton {
+QPushButton#historyNavButton,
+QPushButton#stopButton {
     padding: 4px 12px;
     min-width: 60px;
     color: #b0b0d0;
@@ -251,7 +232,7 @@ QSlider::sub-page:horizontal {
 
 QSlider::handle:horizontal {
     background: #c0b0ff;
-    border: 2px solid #22223a;
+    border: 3px solid #22223a;
     width: 14px;
     height: 14px;
     margin: -6px 0;
