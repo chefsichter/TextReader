@@ -20,10 +20,11 @@ from PySide6.QtWidgets import (
 from text_reader_app.hotkeys import format_hotkey_trigger
 
 from .hotkey_change_dialog import show_hotkey_dialog
+from .preferences_options import LANGUAGE_OPTIONS, READER_OPTIONS
 
 
 LoadCallback = Callable[[], "SettingsFormState | None"]
-SaveCallback = Callable[["SettingsFormState"], None]
+SaveCallback = Callable[["SettingsFormState"], object | None]
 
 
 @dataclass(slots=True)
@@ -122,10 +123,25 @@ class SettingsWindow(QWidget):
 
         self._callbacks.on_save_requested = callback
 
+    def save_callback(self) -> SaveCallback | None:
+        """Return the current save callback."""
+
+        return self._callbacks.on_save_requested
+
     def change_hotkey(self) -> None:
         """Open the hotkey capture dialog from external GUI actions."""
 
         self._change_hotkey()
+
+    def set_reader(self, reader: str) -> None:
+        """Update the reader combo without touching unrelated settings."""
+
+        self._select_combo_text(self._voice_box, reader)
+
+    def set_language(self, language: str) -> None:
+        """Update the language combo without touching unrelated settings."""
+
+        self._select_combo_text(self._language_box, language)
 
     def _build_window(self) -> None:
         self.setWindowTitle("TextReader Settings")
@@ -144,11 +160,9 @@ class SettingsWindow(QWidget):
         self._hotkey_button.clicked.connect(self._change_hotkey)
         self._jump_seconds_box.setRange(1, 60)
         self._jump_seconds_box.setSuffix(" s")
-        self._voice_box.addItems(
-            ["serena", "vivian", "uncle_fu", "ryan", "aiden", "ono_anna", "sohee", "eric", "dylan"],
-        )
+        self._voice_box.addItems(list(READER_OPTIONS))
         self._voice_box.setEditable(True)
-        self._language_box.addItems(["english", "german"])
+        self._language_box.addItems(list(LANGUAGE_OPTIONS))
         self._language_box.setEditable(True)
         self._theme_box.addItem("Light", "light")
         self._theme_box.addItem("Dark", "dark")
@@ -159,7 +173,7 @@ class SettingsWindow(QWidget):
         form.addRow("Capture mode", self._capture_mode_box)
         form.addRow("Hotkey", self._build_hotkey_row())
         form.addRow("Jump seconds", self._jump_seconds_box)
-        form.addRow("Voice", self._voice_box)
+        form.addRow("Reader", self._voice_box)
         form.addRow("Language", self._language_box)
         form.addRow("Theme", self._theme_box)
         return form

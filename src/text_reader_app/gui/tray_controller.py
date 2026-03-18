@@ -10,10 +10,12 @@ from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
 from text_reader_app.hotkeys import format_hotkey_trigger
 
+from .preferences_options import build_menu_options, format_preference_label
 from .player_window import PlayerWindow
 
 ActionCallback = Callable[[], None]
 ModeCallback = Callable[[str], None]
+ValueCallback = Callable[[str], None]
 
 
 @dataclass(slots=True)
@@ -23,6 +25,8 @@ class TrayActionCallbacks:
     on_read_selection: ActionCallback | None = None
     on_read_clipboard: ActionCallback | None = None
     on_capture_mode_changed: ModeCallback | None = None
+    on_reader_changed: ValueCallback | None = None
+    on_language_changed: ValueCallback | None = None
     on_open_settings: ActionCallback | None = None
     on_change_hotkey: ActionCallback | None = None
     on_quit: ActionCallback | None = None
@@ -38,6 +42,10 @@ class TrayController:
         callbacks: TrayActionCallbacks | None = None,
         initial_capture_mode: str = "selection",
         initial_hotkey_trigger: str = "Alt+L",
+        initial_reader: str = "serena",
+        initial_language: str = "german",
+        reader_options: tuple[str, ...] = (),
+        language_options: tuple[str, ...] = (),
     ) -> None:
         self._app = app
         self._player_window = player_window or PlayerWindow()
@@ -50,7 +58,17 @@ class TrayController:
         self._clipboard_mode_action: QAction | None = None
         self._active_capture_mode = _normalize_capture_mode(initial_capture_mode)
         self._hotkey_trigger = format_hotkey_trigger(initial_hotkey_trigger)
+        self._reader_options = tuple(reader_options)
+        self._language_options = tuple(language_options)
+        self._active_reader = initial_reader.strip() or "serena"
+        self._active_language = initial_language.strip() or "german"
         self._hotkey_info_action: QAction | None = None
+        self._reader_actions = QActionGroup(self._tray_menu)
+        self._reader_actions.setExclusive(True)
+        self._language_actions = QActionGroup(self._tray_menu)
+        self._language_actions.setExclusive(True)
+        self._reader_action_map: dict[str, QAction] = {}
+        self._language_action_map: dict[str, QAction] = {}
         self._configure_tray()
 
     def show(self) -> None:
@@ -80,6 +98,11 @@ class TrayController:
     def active_capture_mode(self) -> str:
         return self._active_capture_mode
 
+    def set_callbacks(self, callbacks: TrayActionCallbacks) -> None:
+        """Replace the tray callback bundle after construction."""
+
+        self._callbacks = callbacks
+
     def set_active_capture_mode(self, mode: str) -> None:
         self._set_active_capture_mode(mode, notify=True)
 
@@ -88,6 +111,22 @@ class TrayController:
         if self._hotkey_info_action is not None:
             self._hotkey_info_action.setText(f"Current hotkey: {self._hotkey_trigger}")
         self._tray_icon.setToolTip(_build_tray_tooltip(self._hotkey_trigger))
+
+    def set_reader(self, reader: str) -> None:
+        self._active_reader = reader.strip() or self._active_reader
+        self._refresh_option_menu(
+            option_type="reader",
+            active_value=self._active_reader,
+            option_values=self._reader_options,
+        )
+
+    def set_language(self, language: str) -> None:
+        self._active_language = language.strip() or self._active_language
+        self._refresh_option_menu(
+            option_type="language",
+            active_value=self._active_language,
+            option_values=self._language_options,
+        )
 
     def _set_active_capture_mode(self, mode: str, notify: bool) -> None:
         normalized_mode = _normalize_capture_mode(mode)
@@ -106,6 +145,8 @@ class TrayController:
         self._add_action("Open settings", self.show_settings)
         self._add_action("Read active source", self._run_active_capture_action)
         self._add_capture_mode_menu()
+        self._add_reader_menu()
+        self._add_language_menu()
         self._tray_menu.addSeparator()
         self._add_action("Read selection", self._run_selection_action)
         self._add_action("Read clipboard", self._run_clipboard_action)
@@ -143,6 +184,42 @@ class TrayController:
         self._hotkey_info_action.setEnabled(False)
         self._tray_menu.addAction(self._hotkey_info_action)
         self._add_action("Change hotkey…", self.change_hotkey)
+
+    def _add_reader_menu(self) -> None:
+        self._build_option_menu(
+            title="Reader",
+            option_type="reader",
+            active_value=self._active_reader,
+            option_values=self._reader_options,
+        )
+
+    def _add_language_menu(self) -> None:
+        self._build_option_menu(
+            title="Language",
+            option_type="language",
+            active_value=self._active_language,
+            option_values=self._language_options,
+        )
+
+    def _build_option_menu(
+        self,
+        *,
+        title: str,
+        option_type: str,
+        active_value: str,
+        option_values: tuple[str, ...],
+    ) -> None:
+        menu = self._tray_menu.addMenu(title)
+        action_group = self._action_group_for(option_type)
+        action_map = self._action_map_for(option_type)
+        self._add_option_actions(
+            menu=menu,
+            action_group=action_group,
+            action_map=action_map,
+            option_type=option_type,
+            active_value=active_value,
+            option_values=option_values,
+        )
 
     def _build_mode_action(self, label: str, mode: str) -> QAction:
         action = QAction(label, self._tray_menu)
@@ -183,6 +260,100 @@ class TrayController:
 
     def _select_mode(self, mode: str) -> None:
         self.set_active_capture_mode(mode)
+
+    def _select_option(self, option_type: str, value: str) -> None:
+        if option_type == "reader":
+            self._active_reader = value
+            if self._callbacks.on_reader_changed is not None:
+                self._callbacks.on_reader_changed(value)
+            return
+        self._active_language = value
+        if self._callbacks.on_language_changed is not None:
+            self._callbacks.on_language_changed(value)
+
+    def _refresh_option_menu(
+        self,
+        *,
+        option_type: str,
+        active_value: str,
+        option_values: tuple[str, ...],
+    ) -> None:
+        action_map = self._action_map_for(option_type)
+        if active_value not in action_map:
+            self._rebuild_option_menu(
+                option_type=option_type,
+                active_value=active_value,
+                option_values=option_values,
+            )
+            return
+        action_map[active_value].setChecked(True)
+
+    def _rebuild_option_menu(
+        self,
+        *,
+        option_type: str,
+        active_value: str,
+        option_values: tuple[str, ...],
+    ) -> None:
+        menu_title = "Reader" if option_type == "reader" else "Language"
+        menu = self._find_submenu(menu_title)
+        if menu is None:
+            return
+        menu.clear()
+        action_map = self._action_map_for(option_type)
+        action_map.clear()
+        action_group = self._action_group_for(option_type)
+        for action in list(action_group.actions()):
+            action_group.removeAction(action)
+        self._add_option_actions(
+            menu=menu,
+            action_group=action_group,
+            action_map=action_map,
+            option_type=option_type,
+            active_value=active_value,
+            option_values=option_values,
+        )
+
+    def _find_submenu(self, title: str) -> QMenu | None:
+        for action in self._tray_menu.actions():
+            menu = action.menu()
+            if menu is not None and action.text() == title:
+                return menu
+        return None
+
+    def _add_option_actions(
+        self,
+        *,
+        menu: QMenu,
+        action_group: QActionGroup,
+        action_map: dict[str, QAction],
+        option_type: str,
+        active_value: str,
+        option_values: tuple[str, ...],
+    ) -> None:
+        for value in build_menu_options(active_value, option_values):
+            action = QAction(format_preference_label(value), menu)
+            action.setCheckable(True)
+            action.setChecked(value == active_value)
+            action.triggered.connect(
+                lambda checked=False, selected_value=value: self._select_option(
+                    option_type,
+                    selected_value,
+                ),
+            )
+            action_group.addAction(action)
+            action_map[value] = action
+            menu.addAction(action)
+
+    def _action_group_for(self, option_type: str) -> QActionGroup:
+        if option_type == "reader":
+            return self._reader_actions
+        return self._language_actions
+
+    def _action_map_for(self, option_type: str) -> dict[str, QAction]:
+        if option_type == "reader":
+            return self._reader_action_map
+        return self._language_action_map
 
     def _quit(self) -> None:
         if self._callbacks.on_quit is not None:

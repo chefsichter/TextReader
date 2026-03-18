@@ -11,6 +11,7 @@ from text_reader_app.capture import CaptureMode, TextCaptureError
 from text_reader_app.domain.models import AppPreferences, HistoryEntry, HistoryEntryStatus
 
 from .player_window import PlayerWindow
+from .preferences_options import LANGUAGE_OPTIONS, READER_OPTIONS
 from .settings_window import SettingsFormState, SettingsWindow, SettingsWindowCallbacks
 from .synthesis_worker import SynthesisWorker
 from .tray_controller import TrayActionCallbacks, TrayController
@@ -40,13 +41,20 @@ def create_gui_shell(runtime_context: Any) -> list[object]:
     tray_controller = TrayController(
         app=app,
         player_window=player_window,
-        callbacks=_build_tray_callbacks(
+        initial_capture_mode=runtime_context.capture_mode,
+        initial_hotkey_trigger=runtime_context.hotkey_trigger,
+        initial_reader=runtime_context.voice,
+        initial_language=runtime_context.language,
+        reader_options=READER_OPTIONS,
+        language_options=LANGUAGE_OPTIONS,
+    )
+    tray_controller.set_callbacks(
+        _build_tray_callbacks(
             runtime_context,
             player_window,
             settings_window,
+            tray_controller,
         ),
-        initial_capture_mode=runtime_context.capture_mode,
-        initial_hotkey_trigger=runtime_context.hotkey_trigger,
     )
     _wire_tray_hotkey_change(
         tray_controller,
@@ -70,6 +78,7 @@ def _build_tray_callbacks(
     runtime_context: Any,
     player_window: PlayerWindow,
     settings_window: SettingsWindow,
+    tray_controller: TrayController,
 ) -> TrayActionCallbacks:
     return TrayActionCallbacks(
         on_read_selection=lambda: _capture_and_present(
@@ -83,6 +92,20 @@ def _build_tray_callbacks(
             CaptureMode.CLIPBOARD,
         ),
         on_capture_mode_changed=lambda mode: _persist_capture_mode(runtime_context, mode),
+        on_reader_changed=lambda reader: _update_reader_from_tray(
+            runtime_context,
+            player_window,
+            settings_window,
+            tray_controller,
+            reader=reader,
+        ),
+        on_language_changed=lambda language: _update_language_from_tray(
+            runtime_context,
+            player_window,
+            settings_window,
+            tray_controller,
+            language=language,
+        ),
         on_open_settings=settings_window.show,
         on_change_hotkey=lambda: _change_hotkey_from_tray(
             runtime_context,
@@ -180,7 +203,7 @@ def _save_settings(
     runtime_context: Any,
     player_window: PlayerWindow,
     form_state: SettingsFormState,
-) -> None:
+) -> AppPreferences:
     preferences = runtime_context.application_controller.save_preferences(
         capture_mode=form_state.capture_mode,
         hotkey_trigger=form_state.hotkey_trigger,
@@ -192,12 +215,15 @@ def _save_settings(
     runtime_context.capture_mode = preferences.capture_mode
     runtime_context.jump_seconds = preferences.jump_seconds
     runtime_context.hotkey_trigger = preferences.hotkey_trigger
+    runtime_context.voice = preferences.voice
+    runtime_context.language = preferences.language
     runtime_context.theme = preferences.theme
     player_window.set_jump_labels(preferences.jump_seconds)
     player_window.set_theme(preferences.theme)
     player_window.set_status_text("settings saved")
     from text_reader_app.gui.style_loader import apply_stylesheet
     apply_stylesheet(preferences.theme)
+    return preferences
 
 
 def _change_hotkey_from_tray(
@@ -215,15 +241,57 @@ def _wire_tray_hotkey_change(
     settings_window: SettingsWindow,
     player_window: PlayerWindow,
 ) -> None:
-    original_save_callback = settings_window._callbacks.on_save_requested
+    original_save_callback = settings_window.save_callback()
 
     def save_and_refresh(form_state: SettingsFormState) -> None:
+        preferences: AppPreferences | None = None
         if original_save_callback is not None:
-            original_save_callback(form_state)
-        tray_controller.set_hotkey_trigger(form_state.hotkey_trigger)
+            preferences = original_save_callback(form_state)
+        if preferences is None:
+            return
+        _sync_settings_views(tray_controller, settings_window, preferences)
 
     settings_window.set_save_callback(save_and_refresh)
-    tray_controller.set_hotkey_trigger(runtime_context.hotkey_trigger)
+    _sync_settings_views(
+        tray_controller,
+        settings_window,
+        runtime_context.application_controller.preferences(),
+    )
+
+
+def _update_reader_from_tray(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+    settings_window: SettingsWindow,
+    tray_controller: TrayController,
+    reader: str,
+) -> None:
+    settings_window.set_reader(reader)
+    preferences = _save_settings(runtime_context, player_window, settings_window.state())
+    _sync_settings_views(tray_controller, settings_window, preferences)
+
+
+def _update_language_from_tray(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+    settings_window: SettingsWindow,
+    tray_controller: TrayController,
+    language: str,
+) -> None:
+    settings_window.set_language(language)
+    preferences = _save_settings(runtime_context, player_window, settings_window.state())
+    _sync_settings_views(tray_controller, settings_window, preferences)
+
+
+def _sync_settings_views(
+    tray_controller: TrayController,
+    settings_window: SettingsWindow,
+    preferences: AppPreferences,
+) -> None:
+    settings_window.set_state(_settings_form_state(preferences))
+    tray_controller.set_hotkey_trigger(preferences.hotkey_trigger)
+    tray_controller.set_reader(preferences.voice)
+    tray_controller.set_language(preferences.language)
 
 
 def _toggle_playback(runtime_context: Any) -> None:

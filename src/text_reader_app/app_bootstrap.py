@@ -34,6 +34,8 @@ class RuntimeContext:
     capture_mode: str
     jump_seconds: int
     hotkey_trigger: str
+    voice: str
+    language: str
     theme: str
     local_command_server: LocalCommandServer | None
     background_jobs: list[object]
@@ -94,6 +96,8 @@ def build_runtime_context() -> RuntimeContext:
         capture_mode=controller.capture_mode(),
         jump_seconds=controller.jump_seconds(),
         hotkey_trigger=controller.hotkey_trigger(),
+        voice=controller.voice(),
+        language=controller.language(),
         theme=controller.theme(),
         local_command_server=local_command_server,
         background_jobs=[],

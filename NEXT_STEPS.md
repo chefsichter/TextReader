@@ -14,6 +14,7 @@ The current codebase contains:
 - playback slider, jump controls, and previous/next history navigation
 - cross-platform keyboard hook hotkey backend modeled after `hotkey-transcriber`
 - tray actions for current hotkey display and direct hotkey change
+- tray actions for reader and language selection using the full Qwen custom-voice list
 - local command bridge for external triggering and single-instance commands
 - Windows selection backend
 - launcher scripts under `scripts/`
@@ -120,6 +121,7 @@ Validated in this Linux environment:
 - Linux keyboard hook service start
 - hotkey trigger parsing and runtime hotkey restart
 - tray tooltip and current-hotkey menu label updates
+- tray reader/language persistence and settings-window sync
 - offscreen Linux selection capture smoke test
 - local command bridge smoke test
 - settings persistence + clipboard capture smoke test inside the Qt event loop
