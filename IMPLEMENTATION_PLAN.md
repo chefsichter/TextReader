@@ -28,9 +28,7 @@ Implemented and committed:
 - Linux/PipeWire startup fix via deferred runtime initialization
 - first Linux global hotkey portal backend
 - runtime hotkey backend selection bootstrap
-
-Implemented but not yet fully finalized:
-- GNOME Shell Wayland hotkey fallback work
+- GNOME Shell Wayland hotkey fallback backend
 
 Not yet implemented:
 - Linux selection capture path
@@ -140,7 +138,7 @@ Nicht bevorzugt:
 
 Globaler Hotkey:
 - primaer ueber das XDG Global Shortcuts Portal
-- auf dem aktuellen Zorin/GNOME-Wayland-Desktop ist ein GNOME-Shell-Fallback ueber `org.gnome.Shell.GrabAccelerator` in Arbeit, weil das Portal offenbar nicht verfuegbar ist
+- auf dem aktuellen Zorin/GNOME-Wayland-Desktop existiert ein GNOME-Shell-Fallback ueber `org.gnome.Shell.GrabAccelerator`
 - beide bisher untersuchten Linux-Hotkey-Pfade sind auf dem aktuellen Desktop bereits getestet:
   - das Portal meldet `org.freedesktop.portal.GlobalShortcuts` als nicht verfuegbar
   - GNOME Shell lehnt externe `GrabAccelerator`-Registrierungen ab
@@ -526,8 +524,7 @@ Diese Punkte sind fuer die erste Planung ausreichend geklaert, muessen aber bei 
 ## Naechster sinnvoller Schritt
 
 Den Hotkey auf dem aktuellen Zorin/GNOME-Wayland-Desktop produktiv machen:
-- GNOME-Shell-Fallback als sauberen Degrade-Pfad abschliessen und dokumentieren
-- danach den naechsten praktikablen Linux-Hotkey-Ansatz recherchieren oder einen Desktop-spezifischen Integrationsweg waehlen
+- den naechsten praktikablen Linux-Hotkey-Ansatz recherchieren oder einen Desktop-spezifischen Integrationsweg waehlen
 - danach Wave 4 beginnen:
   - Linux selection capture path
   - settings UI

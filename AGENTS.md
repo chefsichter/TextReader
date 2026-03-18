@@ -122,7 +122,6 @@ As of 2026-03-18 the repository is beyond the original scaffold:
 - runtime hotkey backend selection exists
 
 Known in-progress area:
-- GNOME Shell hotkey fallback work may be present in the worktree but not yet fully committed
 - on the current Zorin/GNOME Wayland desktop, both known Linux hotkey paths currently degrade cleanly to "not available":
   - the XDG portal backend reports that `org.freedesktop.portal.GlobalShortcuts` is missing
   - `org.gnome.Shell.GrabAccelerator` rejects external registrations

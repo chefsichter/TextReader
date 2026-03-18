@@ -35,7 +35,6 @@ Repository guidance:
 ## Immediate Next Step
 
 Turn the current shells into a polished first vertical slice:
-- finish and validate the GNOME Shell hotkey fallback as a clean "not available" path
 - document that neither the portal backend nor GNOME `GrabAccelerator` currently yields a working global hotkey on this desktop
 - choose the next viable Linux hotkey strategy for this environment
 - then continue with Wave 4: Linux selection path, settings UI, and richer history/playback behavior
@@ -47,10 +46,9 @@ Resume from the GNOME/Zorin hotkey fallback slice.
 Committed hotkey work already in history:
 - `a808527` `Add first Linux global hotkey backend slice`
 - `89429ff` `Add hotkey backend selection bootstrap`
+- `ae1f88a` `Add GNOME Shell hotkey fallback backend`
 
 Current uncommitted worktree at last sync:
-- modified: `src/text_reader_app/hotkeys/__init__.py`
-- new: `src/text_reader_app/hotkeys/gnome_shell_hotkey.py`
 - user-created and unresolved: `icon.svg`
 
 Known desktop facts:
@@ -81,7 +79,7 @@ Known desktop facts:
 - [x] Fix Linux/PipeWire startup hang by deferring runtime initialization
 - [x] Add first Linux portal hotkey backend slice
 - [x] Add runtime hotkey backend selection
-- [ ] Finish GNOME Shell hotkey fallback backend
+- [x] Finish GNOME Shell hotkey fallback backend
 - [ ] Choose a Linux hotkey strategy that can actually work on the current Zorin/GNOME Wayland desktop
 - [ ] Add Linux selection capture path
 - [ ] Add settings UI
@@ -109,7 +107,7 @@ Known desktop facts:
 - Add Qwen runtime integration
 - Add clipboard read path
 - Add hotkey integration
-- Status: clipboard path and real synthesis path are implemented and validated on PT71; portal hotkey slice and bootstrap selection are implemented; GNOME fallback is being hardened, but no working global hotkey path exists yet on this desktop
+- Status: clipboard path and real synthesis path are implemented and validated on PT71; portal hotkey slice, bootstrap selection, and GNOME fallback are implemented; no working global hotkey path exists yet on this desktop
 
 ### Wave 4
 
