@@ -4,27 +4,20 @@
 
 Stand: 2026-03-18
 
-Research, product clarification, and first architecture planning are complete.
-
-The initial application scaffold now exists:
-- Python package skeleton
-- editable-installable `pyproject.toml`
-- local `.venv` with editable install
-- Qt application bootstrap
-- minimal tray shell
-- minimal player window
-- SQLite-backed settings repository
-- SQLite-backed history repository
-- placeholder Qwen runtime config
-- audio playback shell
+The app is now beyond the initial scaffold. The current codebase contains:
+- tray app with player and settings windows
+- persistent SQLite settings and history
 - clipboard capture path
-- Qwen synthesizer with real WAV output path when dependencies are available
-- first tray callback flow for clipboard capture into history
-- controller-managed audio cache path and playback handoff
-- validated real Qwen synthesis on the PT71 ROCm environment
-- Linux/PipeWire startup hang fixed by deferred runtime initialization
-- first Linux hotkey portal backend committed
-- runtime hotkey backend selection committed
+- Linux selection capture path
+- real Qwen WAV synthesis
+- background synthesis worker to keep the UI responsive
+- playback slider, jump controls, and previous/next history navigation
+- Linux portal hotkey backend
+- GNOME Shell hotkey fallback backend
+- local command bridge for desktop-managed shortcuts and single-instance commands
+- Windows hotkey backend
+- Windows selection backend
+- launcher scripts under `scripts/`
 
 Primary planning document:
 - `IMPLEMENTATION_PLAN.md`
@@ -34,14 +27,14 @@ Repository guidance:
 
 ## Immediate Next Step
 
-Turn the current shells into a polished first vertical slice:
-- document that neither the portal backend nor GNOME `GrabAccelerator` currently yields a working global hotkey on this desktop
-- choose the next viable Linux hotkey strategy for this environment
-- then continue with Wave 4: Linux selection path, settings UI, and richer history/playback behavior
+Run real desktop UAT and packaging polish:
+- bind a GNOME custom shortcut to `/home/chefsichter/Dokumente/TextReader/scripts/trigger_text_reader.sh`
+- verify tray and player behavior in a real desktop session
+- validate the Windows-specific backends on a Windows machine
 
 ## Resume Point
 
-Resume from the GNOME/Zorin hotkey fallback slice.
+Resume from post-Wave-5 validation and packaging polish.
 
 Committed hotkey work already in history:
 - `a808527` `Add first Linux global hotkey backend slice`
@@ -55,107 +48,92 @@ Known desktop facts:
 - `XDG_SESSION_TYPE=wayland`
 - `XDG_CURRENT_DESKTOP=zorin:GNOME`
 - the XDG portal backend currently reports that `org.freedesktop.portal.GlobalShortcuts` is unavailable on this desktop
-- `org.gnome.Shell` exposes `GrabAccelerator` / `AcceleratorActivated` over D-Bus and is the current fallback target
-- the GNOME fallback was smoke-tested and currently returns `not_available` with `GNOME Shell does not allow external GrabAccelerator registration on this desktop.`
+- `org.gnome.Shell.GrabAccelerator` currently rejects external registrations on this desktop
+- the practical replacement strategy is the local command bridge plus a desktop-managed GNOME shortcut
 
 ## Execution Checklist
 
 - [x] Create `pyproject.toml`
 - [x] Create `src/text_reader_app/` package skeleton
 - [x] Add application bootstrap entry point
-- [x] Add minimal PySide6 tray app
-- [x] Add minimal player window
-- [x] Add settings repository stub
-- [x] Add SQLite history repository stub
-- [x] Add placeholder runtime config for Qwen
+- [x] Add tray app and player window
+- [x] Add settings repository
+- [x] Add SQLite history repository
+- [x] Add Qwen runtime config
 - [x] Ensure local dev startup works from editable venv
-- [x] Add audio playback controller shell
+- [x] Add audio playback controller
 - [x] Add clipboard capture path
-- [x] Add Qwen synthesizer shell
-- [x] Connect tray clipboard action to capture + history + synth shell status
-- [x] Add real WAV output path for Qwen synthesis when runtime dependencies exist
+- [x] Add Qwen synthesizer with real WAV output
 - [x] Route synthesized audio into the playback controller
 - [x] Validate real Qwen synthesis in the active PT71-based development environment
 - [x] Fix Linux/PipeWire startup hang by deferring runtime initialization
 - [x] Add first Linux portal hotkey backend slice
 - [x] Add runtime hotkey backend selection
 - [x] Finish GNOME Shell hotkey fallback backend
-- [ ] Choose a Linux hotkey strategy that can actually work on the current Zorin/GNOME Wayland desktop
-- [ ] Add Linux selection capture path
-- [ ] Add settings UI
-- [ ] Add richer persistent history and playback behavior
+- [x] Choose a Linux hotkey strategy that can actually work on the current Zorin/GNOME Wayland desktop
+- [x] Add Linux selection capture path
+- [x] Add settings UI
+- [x] Add richer persistent history and playback behavior
+- [x] Add Windows-specific backends
+- [x] Add launcher scripts for the current workspace code
+- [ ] Run GNOME desktop shortcut UAT against the local trigger script
+- [ ] Validate Windows-specific backends on a Windows machine
 
-## Implementation Order
+## Wave Status
 
 ### Wave 1
 
-- Create package structure
-- Create bootstrap
-- Create tray shell
-- Create player shell
+- package structure
+- bootstrap
+- tray shell
+- player shell
 - Status: complete
 
 ### Wave 2
 
-- Add persistent settings
-- Add history database
-- Add audio playback controller shell
-- Status: complete for the current shell level
+- persistent settings
+- history database
+- audio playback controller
+- Status: complete
 
 ### Wave 3
 
-- Add Qwen runtime integration
-- Add clipboard read path
-- Add hotkey integration
-- Status: clipboard path and real synthesis path are implemented and validated on PT71; portal hotkey slice, bootstrap selection, and GNOME fallback are implemented; no working global hotkey path exists yet on this desktop
+- Qwen runtime integration
+- clipboard path
+- hotkey integration
+- Status: complete, with desktop-specific fallback strategy on current GNOME/Wayland
 
 ### Wave 4
 
-- Add Linux selection path
-- Add configurable settings UI
-- Add persistent history playback behavior
-- Status: not started
+- Linux selection path
+- configurable settings UI
+- persistent history playback behavior
+- Status: implemented
 
 ### Wave 5
 
-- Add Windows-specific backends
+- Windows-specific backends
+- Status: implemented in code, not yet runtime-validated on Windows
 
-## Known Risks To Revisit During Implementation
+## Validation Notes
 
-- Wayland selection access may be unreliable across desktops/apps.
-- Wayland global hotkey support depends on portal availability.
-- Windows ROCm runtime must be benchmarked separately.
-- Audio seek behavior must be verified early with the chosen playback stack.
-- Offscreen bootstrap test works, but system tray behavior still needs a real desktop session.
-- Full offscreen GUI+audio smoke tests are not reliable in headless mode because Qt tray/multimedia lifecycle can stay alive even when partial checks pass.
-- The current desktop does not appear to expose `org.freedesktop.portal.GlobalShortcuts`, so a desktop-specific fallback is likely required for Wayland hotkeys here.
-- `icon.svg` exists in the worktree but is not yet integrated or documented; treat it as user work unless explicitly adopted.
+Validated in this Linux environment:
+- `python3 -m compileall src/text_reader_app`
+- `timeout 8s .venv/bin/text-reader-app --help`
+- `timeout 8s scripts/run_text_reader.sh --help`
+- offscreen Linux selection capture smoke test
+- local command bridge smoke test
+- settings persistence + clipboard capture smoke test inside the Qt event loop
+- offscreen GUI shell creation smoke test
 
-## Environment Notes
-
-- On this machine, the active local `.venv` now points to `tests/venv_pt71`.
-- That environment has:
-  - `torch 2.10.0+rocm7.1`
-  - `qwen_tts`
-  - `PySide6`
-  - editable install of `text_reader_app`
-- Real synthesis was validated there and produced a WAV file under `/tmp/textreader-qwen-real-venv/`.
-- The app entry point is `.venv/bin/text-reader-app`.
-
-## Definition Of Done For The First Vertical Slice
-
-The first useful slice is complete when:
-- the tray app starts
-- the player window opens
-- one source mode works end to end
-- one text item can be stored in history
-- Qwen can generate audio
-- audio playback can start and be paused
-- one global hotkey path works on the target desktop
+Known limits:
+- full tray/audio UAT still needs a real desktop session
+- Windows hotkey and selection code cannot be runtime-validated from this Linux machine
+- `icon.svg` exists in the worktree but is not yet integrated; treat it as user work unless explicitly adopted
 
 ## Update Rule
 
 When work resumes:
-- mark completed checklist items
-- add new blockers here
-- keep this file focused on the operational next step, not full architecture
+- keep this file operational, not architectural
+- mark completed validation items
+- record any desktop-specific blocker here before changing implementation direction
