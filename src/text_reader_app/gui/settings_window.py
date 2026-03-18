@@ -8,6 +8,7 @@ from typing import Callable
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
+    QFrame,
     QFormLayout,
     QHBoxLayout,
     QToolButton,
@@ -162,13 +163,23 @@ class SettingsWindow(QWidget):
 
     def _build_window(self) -> None:
         self.setWindowTitle("TextReader Settings")
-        self.resize(360, 250)
+        self.resize(420, 360)
         self._configure_controls()
         layout = QVBoxLayout()
-        layout.addLayout(self._build_form_layout())
-        layout.addWidget(self._status_label)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.addWidget(self._build_panel(), 1)
         layout.addLayout(self._build_button_row())
         self.setLayout(layout)
+
+    def _build_panel(self) -> QFrame:
+        frame = QFrame()
+        frame.setObjectName("dialogPanel")
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+        layout.addLayout(self._build_form_layout())
+        layout.addWidget(self._status_label)
+        return frame
 
     def _configure_controls(self) -> None:
         self._capture_mode_box.addItem("Clipboard", "clipboard")
@@ -180,9 +191,10 @@ class SettingsWindow(QWidget):
         self._voice_box.addItems(list(READER_OPTIONS))
         self._voice_box.setEditable(True)
         self._reader_info_button.setText("i")
+        self._reader_info_button.setObjectName("infoButton")
         self._reader_info_button.setToolTip("Reader info")
         self._reader_info_button.setAutoRaise(True)
-        self._reader_info_button.setCursor(Qt.CursorShape.WhatsThisCursor)
+        self._reader_info_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._voice_box.currentTextChanged.connect(self._update_reader_info)
         self._language_box.addItems(list(LANGUAGE_OPTIONS))
         self._language_box.setEditable(True)

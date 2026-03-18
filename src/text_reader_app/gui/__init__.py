@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QThreadPool
-from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QFileDialog
 
 from text_reader_app.capture import CaptureMode, TextCaptureError
 from text_reader_app.domain.models import (
@@ -17,6 +17,7 @@ from text_reader_app.domain.models import (
     HistoryEntryStatus,
 )
 
+from .confirm_delete_dialog import confirm_delete
 from .edit_regenerate_dialog import show_edit_regenerate_dialog
 from .player_window import PlayerWindow
 from .preferences_options import LANGUAGE_OPTIONS, READER_OPTIONS
@@ -459,14 +460,12 @@ def _confirm_and_clear_history(runtime_context: Any, player_window: PlayerWindow
     if runtime_context.background_jobs:
         player_window.set_status_text("wait for synthesis")
         return
-    button = QMessageBox.question(
-        player_window,
-        "Delete all entries",
-        "Delete all saved text and generated audio files?",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        QMessageBox.StandardButton.No,
-    )
-    if button != QMessageBox.StandardButton.Yes:
+    if not confirm_delete(
+        parent=player_window,
+        title="Delete all entries",
+        message="Delete all saved text and generated audio files?",
+        confirm_label="Delete all",
+    ):
         return
     deleted_count = runtime_context.application_controller.clear_history()
     _clear_presented_entry(player_window)

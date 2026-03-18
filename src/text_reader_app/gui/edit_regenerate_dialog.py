@@ -6,7 +6,9 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
-    QDialogButtonBox,
+    QFrame,
+    QHBoxLayout,
+    QPushButton,
     QFormLayout,
     QTextEdit,
     QVBoxLayout,
@@ -33,6 +35,8 @@ class EditRegenerateDialog(QDialog):
         self._language_box = QComboBox()
         self._synthesis_mode_box = QComboBox()
         self._save_as_new_entry_box = QCheckBox("Save as new entry")
+        self._cancel_button = QPushButton("Cancel")
+        self._regenerate_button = QPushButton("Regenerate")
         self._build_dialog()
         self._set_initial_request(initial_request)
 
@@ -50,10 +54,20 @@ class EditRegenerateDialog(QDialog):
     def _build_dialog(self) -> None:
         self.setWindowTitle("Edit & regenerate")
         self.setWindowIcon(load_app_icon())
-        self.resize(520, 360)
+        self.resize(560, 420)
         self._configure_controls()
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.addWidget(self._build_panel(), 1)
+        layout.addLayout(self._build_button_row())
+
+    def _build_panel(self) -> QFrame:
+        frame = QFrame()
+        frame.setObjectName("dialogPanel")
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
         form.addRow("Text", self._text_edit)
@@ -62,10 +76,11 @@ class EditRegenerateDialog(QDialog):
         form.addRow("Synthesis", self._synthesis_mode_box)
         layout.addLayout(form)
         layout.addWidget(self._save_as_new_entry_box)
-        layout.addWidget(self._build_button_box())
+        return frame
 
     def _configure_controls(self) -> None:
         self._text_edit.setAcceptRichText(False)
+        self._text_edit.setObjectName("dialogTextEdit")
         self._text_edit.setPlaceholderText("Edit text before regenerating audio.")
         self._reader_box.addItems(list(READER_OPTIONS))
         self._reader_box.setEditable(True)
@@ -81,14 +96,15 @@ class EditRegenerateDialog(QDialog):
         self._select_synthesis_mode(request.synthesis_mode)
         self._save_as_new_entry_box.setChecked(request.save_as_new_entry)
 
-    def _build_button_box(self) -> QDialogButtonBox:
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok,
-        )
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Regenerate")
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        return buttons
+    def _build_button_row(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self._cancel_button.clicked.connect(self.reject)
+        self._regenerate_button.setObjectName("primaryButton")
+        self._regenerate_button.clicked.connect(self.accept)
+        row.addWidget(self._cancel_button)
+        row.addWidget(self._regenerate_button)
+        return row
 
     def _select_editable_text(self, combo_box: QComboBox, value: str) -> None:
         index = combo_box.findText(value)
