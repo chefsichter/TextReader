@@ -21,6 +21,7 @@ The initial application scaffold now exists:
 - Qwen synthesizer with real WAV output path when dependencies are available
 - first tray callback flow for clipboard capture into history
 - controller-managed audio cache path and playback handoff
+- validated real Qwen synthesis on the PT71 ROCm environment
 
 Primary planning document:
 - `IMPLEMENTATION_PLAN.md`
@@ -31,9 +32,9 @@ Repository guidance:
 ## Immediate Next Step
 
 Turn the current shells into a polished first vertical slice:
-- validate real Qwen generation in the editable `.venv`
 - wire player controls more fully to playback state and seek updates
 - add the first hotkey backend
+- surface playback/history state more clearly in the player UI
 
 ## Execution Checklist
 
@@ -52,6 +53,7 @@ Turn the current shells into a polished first vertical slice:
 - [x] Connect tray clipboard action to capture + history + synth shell status
 - [x] Add real WAV output path for Qwen synthesis when runtime dependencies exist
 - [x] Route synthesized audio into the playback controller
+- [x] Validate real Qwen synthesis in the active PT71-based development environment
 
 ## Implementation Order
 
@@ -75,7 +77,7 @@ Turn the current shells into a polished first vertical slice:
 - Add Qwen runtime integration
 - Add clipboard read path
 - Add hotkey integration
-- Status: clipboard path and real synthesis path are implemented; runtime validation + hotkey pending
+- Status: clipboard path and real synthesis path are implemented and validated on PT71; hotkey still pending
 
 ### Wave 4
 
@@ -95,7 +97,16 @@ Turn the current shells into a polished first vertical slice:
 - Audio seek behavior must be verified early with the chosen playback stack.
 - Offscreen bootstrap test works, but system tray behavior still needs a real desktop session.
 - Full offscreen GUI+audio smoke tests are not reliable in headless mode because Qt tray/multimedia lifecycle can stay alive even when partial checks pass.
-- The editable `.venv` still lacks `qwen_tts`/`torch`, so the real synthesis path is implemented but not yet executable there.
+
+## Environment Notes
+
+- On this machine, the active local `.venv` now points to `tests/venv_pt71`.
+- That environment has:
+  - `torch 2.10.0+rocm7.1`
+  - `qwen_tts`
+  - `PySide6`
+  - editable install of `text_reader_app`
+- Real synthesis was validated there and produced a WAV file under `/tmp/textreader-qwen-real-venv/`.
 
 ## Definition Of Done For The First Vertical Slice
 
