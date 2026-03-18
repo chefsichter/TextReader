@@ -159,12 +159,16 @@ def _save_settings(
         jump_seconds=form_state.jump_seconds,
         voice=form_state.voice,
         language=form_state.language,
+        theme=form_state.theme,
     )
     runtime_context.capture_mode = preferences.capture_mode
     runtime_context.jump_seconds = preferences.jump_seconds
     runtime_context.hotkey_trigger = preferences.hotkey_trigger
+    runtime_context.theme = preferences.theme
     player_window.set_jump_labels(preferences.jump_seconds)
     player_window.set_status_text("settings saved")
+    from text_reader_app.gui.style_loader import apply_stylesheet
+    apply_stylesheet(preferences.theme)
 
 
 def _toggle_playback(runtime_context: Any) -> None:
@@ -389,6 +393,7 @@ def _settings_form_state(preferences: AppPreferences) -> SettingsFormState:
         jump_seconds=preferences.jump_seconds,
         voice=preferences.voice,
         language=preferences.language,
+        theme=preferences.theme,
     )
 
 

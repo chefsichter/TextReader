@@ -35,6 +35,7 @@ class AppPreferences:
     jump_seconds: int
     voice: str
     language: str
+    theme: str = "light"
 
 
 @dataclass(slots=True)

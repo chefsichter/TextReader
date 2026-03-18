@@ -1,0 +1,285 @@
+/* ─── Farben (Light Theme) ────────────────────────────────
+   bg-base:       #f5f5f7   Fenster-Hintergrund
+   bg-surface:    #ffffff   Panels / Frames
+   bg-input:      #ffffff   Eingabefelder
+   bg-hover:      #e8e8f4   Hover-Zustand
+   bg-pressed:    #d8d8f0   Press-Zustand
+   border:        #d0d0e0   Standard-Rahmen
+   border-focus:  #6c5ce7   Fokus-Rahmen (Akzent)
+   text:          #1a1a2e   Primärtext
+   text-dim:      #606080   Sekundärtext / Labels
+   text-disabled: #a0a0c0   Deaktiviert
+   accent:        #6c5ce7   Primäraktion (Play, Save)
+   accent-hover:  #7c6af7   Accent Hover
+   accent-pressed:#5a4bd0   Accent Pressed
+───────────────────────────────────────────────────────── */
+
+/* ─── Base ─────────────────────────────────────────────── */
+QWidget {
+    background-color: #f5f5f7;
+    color: #1a1a2e;
+    font-family: "Inter", "Segoe UI", "Ubuntu", sans-serif;
+    font-size: 13px;
+}
+
+QWidget:disabled {
+    color: #a0a0c0;
+}
+
+/* ─── Labels ────────────────────────────────────────────── */
+QLabel {
+    background: transparent;
+    color: #1a1a2e;
+}
+
+QLabel#playerTitle {
+    font-size: 18px;
+    font-weight: 600;
+    color: #5a4bd0;
+    padding-bottom: 4px;
+}
+
+QLabel#positionLabel {
+    color: #606080;
+    font-size: 12px;
+    qproperty-alignment: AlignCenter;
+}
+
+QLabel#statusLabel {
+    color: #606080;
+    font-size: 12px;
+}
+
+/* ─── Panels (QFrame) ───────────────────────────────────── */
+QFrame#statusPanel,
+QFrame#historyPanel {
+    background-color: #ffffff;
+    border: 1px solid #d0d0e0;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+/* ─── Buttons (Standard) ────────────────────────────────── */
+QPushButton {
+    background-color: #eeeef6;
+    color: #1a1a2e;
+    border: 1px solid #c8c8e0;
+    border-radius: 5px;
+    padding: 5px 14px;
+    min-height: 28px;
+}
+
+QPushButton:hover {
+    background-color: #e0e0f4;
+    border-color: #a0a0d0;
+}
+
+QPushButton:pressed {
+    background-color: #d4d4ec;
+}
+
+QPushButton:disabled {
+    background-color: #f0f0f4;
+    color: #a0a0c0;
+    border-color: #dcdce8;
+}
+
+/* ─── Play/Pause-Button (Primäraktion) ──────────────────── */
+QPushButton#playPauseButton {
+    background-color: #6c5ce7;
+    color: #ffffff;
+    border-color: #5a4bd0;
+    font-weight: 600;
+    min-width: 80px;
+}
+
+QPushButton#playPauseButton:hover {
+    background-color: #7c6af7;
+    border-color: #6c5ce7;
+}
+
+QPushButton#playPauseButton:pressed {
+    background-color: #5a4bd0;
+}
+
+QPushButton#playPauseButton:disabled {
+    background-color: #c8c8e8;
+    border-color: #c0c0dc;
+    color: #a0a0c0;
+    font-weight: normal;
+}
+
+/* ─── Save-Button (Primäraktion im Settings) ────────────── */
+QPushButton#primaryButton {
+    background-color: #6c5ce7;
+    color: #ffffff;
+    border-color: #5a4bd0;
+    font-weight: 600;
+}
+
+QPushButton#primaryButton:hover {
+    background-color: #7c6af7;
+}
+
+QPushButton#primaryButton:pressed {
+    background-color: #5a4bd0;
+}
+
+/* ─── Kleine Nav/Jump-Buttons ───────────────────────────── */
+QPushButton#jumpButton,
+QPushButton#historyNavButton {
+    padding: 4px 10px;
+    min-width: 52px;
+    color: #404060;
+    font-size: 12px;
+}
+
+/* ─── Slider ────────────────────────────────────────────── */
+QSlider::groove:horizontal {
+    height: 4px;
+    background: #d0d0e8;
+    border-radius: 2px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #6c5ce7;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background: #6c5ce7;
+    border: none;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #5a4bd0;
+}
+
+QSlider:disabled::groove:horizontal {
+    background: #e0e0ec;
+}
+
+QSlider:disabled::handle:horizontal {
+    background: #c0c0d8;
+}
+
+/* ─── Text-Preview ──────────────────────────────────────── */
+QTextEdit#textPreview {
+    background-color: #ffffff;
+    border: 1px solid #d0d0e0;
+    border-radius: 6px;
+    padding: 8px;
+    color: #1a1a2e;
+    selection-background-color: #6c5ce7;
+    selection-color: #ffffff;
+}
+
+/* ─── ComboBox ──────────────────────────────────────────── */
+QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #c8c8e0;
+    border-radius: 5px;
+    padding: 4px 8px;
+    min-height: 26px;
+    color: #1a1a2e;
+}
+
+QComboBox:hover {
+    border-color: #a0a0d0;
+}
+
+QComboBox:focus {
+    border-color: #6c5ce7;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    border: 1px solid #c8c8e0;
+    selection-background-color: #6c5ce7;
+    selection-color: #ffffff;
+    color: #1a1a2e;
+    outline: none;
+}
+
+/* ─── SpinBox ───────────────────────────────────────────── */
+QSpinBox {
+    background-color: #ffffff;
+    border: 1px solid #c8c8e0;
+    border-radius: 5px;
+    padding: 4px 8px;
+    min-height: 26px;
+    color: #1a1a2e;
+}
+
+QSpinBox:focus {
+    border-color: #6c5ce7;
+}
+
+QSpinBox::up-button,
+QSpinBox::down-button {
+    background-color: #eeeef6;
+    border: none;
+    width: 18px;
+}
+
+QSpinBox::up-button:hover,
+QSpinBox::down-button:hover {
+    background-color: #e0e0f4;
+}
+
+/* ─── LineEdit / KeySequenceEdit ────────────────────────── */
+QLineEdit,
+QKeySequenceEdit {
+    background-color: #ffffff;
+    border: 1px solid #c8c8e0;
+    border-radius: 5px;
+    padding: 4px 8px;
+    min-height: 26px;
+    color: #1a1a2e;
+}
+
+QLineEdit:focus,
+QKeySequenceEdit:focus {
+    border-color: #6c5ce7;
+}
+
+/* ─── Dialog ────────────────────────────────────────────── */
+QDialog {
+    background-color: #f5f5f7;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────── */
+QScrollBar:vertical {
+    background: #f5f5f7;
+    width: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #c0c0d8;
+    border-radius: 4px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #a0a0c8;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}

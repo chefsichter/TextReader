@@ -35,6 +35,7 @@ class SettingsFormState:
     jump_seconds: int = 5
     voice: str = "serena"
     language: str = "english"
+    theme: str = "light"
 
 
 @dataclass(slots=True)
@@ -63,6 +64,7 @@ class SettingsWindow(QWidget):
         self._jump_seconds_box = QSpinBox()
         self._voice_box = QComboBox()
         self._language_box = QComboBox()
+        self._theme_box = QComboBox()
         self._build_window()
         self.set_state(initial_state or SettingsFormState())
 
@@ -75,6 +77,7 @@ class SettingsWindow(QWidget):
             jump_seconds=self._jump_seconds_box.value(),
             voice=self._voice_box.currentText().strip() or "serena",
             language=self._language_box.currentText().strip() or "english",
+            theme=self._theme_box.currentData() or "light",
         )
 
     def set_state(self, state: SettingsFormState) -> None:
@@ -85,6 +88,7 @@ class SettingsWindow(QWidget):
         self._jump_seconds_box.setValue(max(1, state.jump_seconds))
         self._select_combo_text(self._voice_box, state.voice)
         self._select_combo_text(self._language_box, state.language)
+        self._select_theme(state.theme)
         self.set_status_text("Settings loaded.")
 
     def set_status_text(self, text: str) -> None:
@@ -115,7 +119,7 @@ class SettingsWindow(QWidget):
 
     def _build_window(self) -> None:
         self.setWindowTitle("TextReader Settings")
-        self.resize(360, 220)
+        self.resize(360, 250)
         self._configure_controls()
         layout = QVBoxLayout()
         layout.addLayout(self._build_form_layout())
@@ -136,6 +140,8 @@ class SettingsWindow(QWidget):
         self._voice_box.setEditable(True)
         self._language_box.addItems(["english", "german"])
         self._language_box.setEditable(True)
+        self._theme_box.addItem("Light", "light")
+        self._theme_box.addItem("Dark", "dark")
 
     def _build_form_layout(self) -> QFormLayout:
         form = QFormLayout()
@@ -145,6 +151,7 @@ class SettingsWindow(QWidget):
         form.addRow("Jump seconds", self._jump_seconds_box)
         form.addRow("Voice", self._voice_box)
         form.addRow("Language", self._language_box)
+        form.addRow("Theme", self._theme_box)
         return form
 
     def _build_hotkey_row(self) -> QWidget:
@@ -181,6 +188,11 @@ class SettingsWindow(QWidget):
         normalized_mode = "selection" if capture_mode == "selection" else "clipboard"
         index = self._capture_mode_box.findData(normalized_mode, Qt.ItemDataRole.UserRole)
         self._capture_mode_box.setCurrentIndex(max(index, 0))
+
+    def _select_theme(self, theme: str) -> None:
+        normalized = "dark" if theme == "dark" else "light"
+        index = self._theme_box.findData(normalized, Qt.ItemDataRole.UserRole)
+        self._theme_box.setCurrentIndex(max(index, 0))
 
     def _select_combo_text(self, combo_box: QComboBox, value: str) -> None:
         index = combo_box.findText(value, Qt.MatchFlag.MatchFixedString)

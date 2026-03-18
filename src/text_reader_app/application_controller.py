@@ -100,6 +100,19 @@ class ApplicationController:
             or self.qwen_speech_synthesizer.runtime_config.language
         )
 
+    def theme(self) -> str:
+        """Return the configured UI theme ('light' or 'dark')."""
+
+        value = self.settings_repository.get_value("theme", "light")
+        return "dark" if value == "dark" else "light"
+
+    def set_theme(self, theme: str) -> str:
+        """Persist the UI theme and return the normalized value."""
+
+        normalized = "dark" if theme == "dark" else "light"
+        self.settings_repository.set("theme", normalized)
+        return normalized
+
     def preferences(self) -> AppPreferences:
         """Return a normalized snapshot of persisted application settings."""
 
@@ -109,6 +122,7 @@ class ApplicationController:
             jump_seconds=self.jump_seconds(),
             voice=self.voice(),
             language=self.language(),
+            theme=self.theme(),
         )
 
     def save_preferences(
@@ -119,6 +133,7 @@ class ApplicationController:
         jump_seconds: int,
         voice: str,
         language: str,
+        theme: str = "light",
     ) -> AppPreferences:
         """Persist settings and apply runtime TTS choices immediately."""
 
@@ -128,6 +143,7 @@ class ApplicationController:
             jump_seconds=self.set_jump_seconds(jump_seconds),
             voice=voice.strip() or self.voice(),
             language=language.strip() or self.language(),
+            theme=self.set_theme(theme),
         )
         self.settings_repository.set("voice", normalized_preferences.voice)
         self.settings_repository.set("language", normalized_preferences.language)
@@ -369,6 +385,7 @@ def _ensure_default_settings(controller: ApplicationController) -> None:
         "hotkey_trigger": "Alt+L",
         "voice": controller.qwen_speech_synthesizer.runtime_config.speaker,
         "language": controller.qwen_speech_synthesizer.runtime_config.language,
+        "theme": "light",
     }
     for key, value in defaults.items():
         if controller.settings_repository.get_value(key) is None:

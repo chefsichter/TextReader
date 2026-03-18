@@ -5,15 +5,26 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication
 
 
-def load_stylesheet() -> str:
-    """Return the contents of the bundled style.qss file."""
+def load_stylesheet(theme: str = "light") -> str:
+    """Return the QSS stylesheet for the given theme ('light' or 'dark')."""
 
-    qss_path = Path(__file__).parent / "style.qss"
+    filename = "style_dark.qss" if theme == "dark" else "style_light.qss"
+    qss_path = Path(__file__).parent / filename
     if not qss_path.exists():
         return ""
     return qss_path.read_text(encoding="utf-8")
+
+
+def apply_stylesheet(theme: str = "light") -> None:
+    """Apply the stylesheet for the given theme to the running QApplication."""
+
+    app = QApplication.instance()
+    if app is None:
+        return
+    app.setStyleSheet(load_stylesheet(theme))
 
 
 def load_app_icon() -> QIcon:

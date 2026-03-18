@@ -34,6 +34,7 @@ class RuntimeContext:
     capture_mode: str
     jump_seconds: int
     hotkey_trigger: str
+    theme: str
     local_command_server: LocalCommandServer | None
     background_jobs: list[object]
 
@@ -56,7 +57,7 @@ def build_application(argv: list[str] | None = None) -> QApplication:
     app.setQuitOnLastWindowClosed(False)
 
     from text_reader_app.gui.style_loader import load_app_icon, load_stylesheet
-    stylesheet = load_stylesheet()
+    stylesheet = load_stylesheet("light")
     if stylesheet:
         app.setStyleSheet(stylesheet)
     app_icon = load_app_icon()
@@ -93,6 +94,7 @@ def build_runtime_context() -> RuntimeContext:
         capture_mode=controller.capture_mode(),
         jump_seconds=controller.jump_seconds(),
         hotkey_trigger=controller.hotkey_trigger(),
+        theme=controller.theme(),
         local_command_server=local_command_server,
         background_jobs=[],
     )
@@ -131,6 +133,8 @@ def run(argv: list[str] | None = None) -> int:
 
     def _deferred_init() -> None:
         runtime_context = build_runtime_context()
+        from text_reader_app.gui.style_loader import apply_stylesheet
+        apply_stylesheet(runtime_context.theme)
         ui_objects = create_ui(runtime_context)
         if not ui_objects:
             LOGGER.info("Exiting because no GUI shell is registered yet.")
