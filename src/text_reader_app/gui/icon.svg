@@ -5,12 +5,12 @@
       <stop offset="1" stop-color="#5a4bd0"/>
     </linearGradient>
   </defs>
-  <rect x="8" y="8" width="496" height="496" rx="112" fill="url(#g1)"/>
+  <rect x="0" y="0" width="512" height="512" rx="64" fill="url(#g1)"/>
 
   <!-- Text lines -->
-  <rect x="86" y="128" width="170" height="24" rx="12" fill="white" opacity="0.95"/>
-  <rect x="86" y="184" width="130" height="24" rx="12" fill="white" opacity="0.9"/>
-  <rect x="86" y="240" width="156" height="24" rx="12" fill="white" opacity="0.85"/>
+  <rect x="78" y="120" width="170" height="26" rx="13" fill="white" opacity="0.95"/>
+  <rect x="78" y="178" width="130" height="26" rx="13" fill="white" opacity="0.9"/>
+  <rect x="78" y="236" width="156" height="26" rx="13" fill="white" opacity="0.85"/>
 
   <!-- Speaker -->
   <path d="M248 190L320 142V370L248 322H200C181.222 322 166 306.778 166 288V224C166 205.222 181.222 190 200 190H248Z" fill="white"/>

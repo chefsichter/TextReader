@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication
 
 
@@ -28,9 +30,22 @@ def apply_stylesheet(theme: str = "light") -> None:
 
 
 def load_app_icon() -> QIcon:
-    """Return the bundled application icon, or an empty QIcon as fallback."""
+    """Render the bundled SVG icon to pixmaps at standard sizes and return a QIcon."""
 
     icon_path = Path(__file__).parent / "icon.svg"
     if not icon_path.exists():
         return QIcon()
-    return QIcon(str(icon_path))
+
+    renderer = QSvgRenderer(str(icon_path))
+    if not renderer.isValid():
+        return QIcon(str(icon_path))
+
+    icon = QIcon()
+    for size in (16, 22, 24, 32, 48, 64, 128, 256, 512):
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+        icon.addPixmap(pixmap)
+    return icon
