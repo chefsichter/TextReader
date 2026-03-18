@@ -102,10 +102,11 @@ class TrayController:
         self._tray_menu.addAction(action)
 
     def _resolve_icon(self) -> QIcon:
-        icon = self._app.style().standardIcon(QStyle.StandardPixmap.SP_MediaVolume)
+        from .style_loader import load_app_icon
+        icon = load_app_icon()
         if not icon.isNull():
             return icon
-        return QIcon()
+        return self._app.style().standardIcon(QStyle.StandardPixmap.SP_MediaVolume)
 
     def _add_capture_mode_menu(self) -> None:
         mode_menu = self._tray_menu.addMenu("Active capture mode")

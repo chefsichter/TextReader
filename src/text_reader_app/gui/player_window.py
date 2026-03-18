@@ -32,14 +32,20 @@ class PlayerWindow(QWidget):
         self._entry_meta_label = self._build_secondary_label("No capture loaded.")
         self._entry_source_label = self._build_secondary_label("Source: -")
         self._position_label = QLabel("00:00 / 00:00")
+        self._position_label.setObjectName("positionLabel")
         self._is_updating_slider = False
         self._duration_ms = 0
         self._position_slider = self._build_slider()
         self._previous_history_button = QPushButton("Previous")
+        self._previous_history_button.setObjectName("historyNavButton")
         self._next_history_button = QPushButton("Next")
+        self._next_history_button.setObjectName("historyNavButton")
         self._jump_back_button = QPushButton("-5s")
+        self._jump_back_button.setObjectName("jumpButton")
         self._play_pause_button = QPushButton("Play")
+        self._play_pause_button.setObjectName("playPauseButton")
         self._jump_forward_button = QPushButton("+5s")
+        self._jump_forward_button.setObjectName("jumpButton")
         self._stop_button = QPushButton("Stop")
         self._preview = self._build_preview()
         self._build_layout()
@@ -172,6 +178,7 @@ class PlayerWindow(QWidget):
 
     def _build_preview(self) -> QTextEdit:
         preview = QTextEdit()
+        preview.setObjectName("textPreview")
         preview.setReadOnly(True)
         preview.setPlaceholderText("Captured text will appear here.")
         return preview
@@ -190,6 +197,7 @@ class PlayerWindow(QWidget):
 
     def _build_status_panel(self) -> QFrame:
         frame = QFrame()
+        frame.setObjectName("statusPanel")
         layout = QGridLayout()
         layout.addWidget(QLabel("Capture status"), 0, 0)
         layout.addWidget(self._capture_status_value, 0, 1)
@@ -200,6 +208,7 @@ class PlayerWindow(QWidget):
 
     def _build_history_panel(self) -> QFrame:
         frame = QFrame()
+        frame.setObjectName("historyPanel")
         layout = QHBoxLayout()
         layout.addWidget(self._previous_history_button)
         layout.addWidget(self._history_position_label, 1)

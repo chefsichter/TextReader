@@ -54,6 +54,15 @@ def build_application(argv: list[str] | None = None) -> QApplication:
     app = QApplication(qt_argv)
     app.setApplicationName("TextReader")
     app.setQuitOnLastWindowClosed(False)
+
+    from text_reader_app.gui.style_loader import load_app_icon, load_stylesheet
+    stylesheet = load_stylesheet()
+    if stylesheet:
+        app.setStyleSheet(stylesheet)
+    app_icon = load_app_icon()
+    if not app_icon.isNull():
+        app.setWindowIcon(app_icon)
+
     return app
 
 

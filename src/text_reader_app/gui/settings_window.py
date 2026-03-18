@@ -56,6 +56,7 @@ class SettingsWindow(QWidget):
         super().__init__()
         self._callbacks = callbacks or SettingsWindowCallbacks()
         self._status_label = QLabel("Settings ready.")
+        self._status_label.setObjectName("statusLabel")
         self._capture_mode_box = QComboBox()
         self._hotkey_label = QLabel("Alt+L")
         self._hotkey_button = QPushButton("Change")
@@ -171,6 +172,7 @@ class SettingsWindow(QWidget):
         button = QPushButton(text)
         button.clicked.connect(callback)
         if primary:
+            button.setObjectName("primaryButton")
             button.setDefault(True)
             button.setAutoDefault(True)
         return button

@@ -1,0 +1,280 @@
+/* ─── Farben (Dark Theme) ─────────────────────────────────
+   bg-base:       #1e1e2e   Fenster-Hintergrund
+   bg-surface:    #252538   Panels / Frames
+   bg-input:      #2a2a3e   Eingabefelder / Buttons
+   bg-hover:      #4a4a6a   Hover-Zustand
+   bg-pressed:    #2a2a45   Press-Zustand
+   border:        #3d3d5c   Standard-Rahmen
+   border-focus:  #7c6af7   Fokus-Rahmen (Akzent)
+   text:          #e0e0f0   Primärtext
+   text-dim:      #9090b0   Sekundärtext / Labels
+   text-disabled: #555570   Deaktiviert
+   accent:        #6c5ce7   Primäraktion (Play, Save)
+   accent-hover:  #7c6af7   Accent Hover
+   accent-pressed:#5a4bd0   Accent Pressed
+───────────────────────────────────────────────────────── */
+
+/* ─── Base ─────────────────────────────────────────────── */
+QWidget {
+    background-color: #1e1e2e;
+    color: #e0e0f0;
+    font-family: "Inter", "Segoe UI", "Ubuntu", sans-serif;
+    font-size: 13px;
+}
+
+QWidget:disabled {
+    color: #555570;
+}
+
+/* ─── Labels ────────────────────────────────────────────── */
+QLabel {
+    background: transparent;
+    color: #e0e0f0;
+}
+
+QLabel#playerTitle {
+    font-size: 18px;
+    font-weight: 600;
+    color: #c0b0ff;
+    padding-bottom: 4px;
+}
+
+QLabel#positionLabel {
+    color: #9090b0;
+    font-size: 12px;
+    qproperty-alignment: AlignCenter;
+}
+
+QLabel#statusLabel {
+    color: #9090b0;
+    font-size: 12px;
+}
+
+/* ─── Panels (QFrame) ───────────────────────────────────── */
+QFrame#statusPanel,
+QFrame#historyPanel {
+    background-color: #252538;
+    border: 1px solid #3d3d5c;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+/* ─── Buttons (Standard) ────────────────────────────────── */
+QPushButton {
+    background-color: #3a3a55;
+    color: #e0e0f0;
+    border: 1px solid #4a4a6a;
+    border-radius: 5px;
+    padding: 5px 14px;
+    min-height: 28px;
+}
+
+QPushButton:hover {
+    background-color: #4a4a6a;
+    border-color: #6060a0;
+}
+
+QPushButton:pressed {
+    background-color: #2a2a45;
+}
+
+QPushButton:disabled {
+    background-color: #252538;
+    color: #555570;
+    border-color: #303048;
+}
+
+/* ─── Play/Pause-Button (Primäraktion) ──────────────────── */
+QPushButton#playPauseButton {
+    background-color: #6c5ce7;
+    border-color: #7c6af7;
+    font-weight: 600;
+    min-width: 80px;
+}
+
+QPushButton#playPauseButton:hover {
+    background-color: #7c6af7;
+}
+
+QPushButton#playPauseButton:pressed {
+    background-color: #5a4bd0;
+}
+
+QPushButton#playPauseButton:disabled {
+    background-color: #3a3a55;
+    border-color: #303048;
+    color: #555570;
+    font-weight: normal;
+}
+
+/* ─── Save-Button (Primäraktion im Settings) ────────────── */
+QPushButton#primaryButton {
+    background-color: #6c5ce7;
+    border-color: #7c6af7;
+    font-weight: 600;
+}
+
+QPushButton#primaryButton:hover {
+    background-color: #7c6af7;
+}
+
+QPushButton#primaryButton:pressed {
+    background-color: #5a4bd0;
+}
+
+/* ─── Kleine Nav/Jump-Buttons ───────────────────────────── */
+QPushButton#jumpButton,
+QPushButton#historyNavButton {
+    padding: 4px 10px;
+    min-width: 52px;
+    color: #b0b0d0;
+    font-size: 12px;
+}
+
+/* ─── Slider ────────────────────────────────────────────── */
+QSlider::groove:horizontal {
+    height: 4px;
+    background: #3d3d5c;
+    border-radius: 2px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #6c5ce7;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background: #c0b0ff;
+    border: none;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #e0d0ff;
+}
+
+QSlider:disabled::groove:horizontal {
+    background: #2a2a3e;
+}
+
+QSlider:disabled::handle:horizontal {
+    background: #3d3d5c;
+}
+
+/* ─── Text-Preview ──────────────────────────────────────── */
+QTextEdit#textPreview {
+    background-color: #161622;
+    border: 1px solid #3d3d5c;
+    border-radius: 6px;
+    padding: 8px;
+    color: #d0d0e8;
+    selection-background-color: #6c5ce7;
+}
+
+/* ─── ComboBox ──────────────────────────────────────────── */
+QComboBox {
+    background-color: #2a2a3e;
+    border: 1px solid #4a4a6a;
+    border-radius: 5px;
+    padding: 4px 8px;
+    min-height: 26px;
+    color: #e0e0f0;
+}
+
+QComboBox:hover {
+    border-color: #6060a0;
+}
+
+QComboBox:focus {
+    border-color: #7c6af7;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #2a2a3e;
+    border: 1px solid #4a4a6a;
+    selection-background-color: #6c5ce7;
+    color: #e0e0f0;
+    outline: none;
+}
+
+/* ─── SpinBox ───────────────────────────────────────────── */
+QSpinBox {
+    background-color: #2a2a3e;
+    border: 1px solid #4a4a6a;
+    border-radius: 5px;
+    padding: 4px 8px;
+    min-height: 26px;
+    color: #e0e0f0;
+}
+
+QSpinBox:focus {
+    border-color: #7c6af7;
+}
+
+QSpinBox::up-button,
+QSpinBox::down-button {
+    background-color: #3a3a55;
+    border: none;
+    width: 18px;
+}
+
+QSpinBox::up-button:hover,
+QSpinBox::down-button:hover {
+    background-color: #4a4a6a;
+}
+
+/* ─── LineEdit / KeySequenceEdit ────────────────────────── */
+QLineEdit,
+QKeySequenceEdit {
+    background-color: #2a2a3e;
+    border: 1px solid #4a4a6a;
+    border-radius: 5px;
+    padding: 4px 8px;
+    min-height: 26px;
+    color: #e0e0f0;
+}
+
+QLineEdit:focus,
+QKeySequenceEdit:focus {
+    border-color: #7c6af7;
+}
+
+/* ─── Dialog ────────────────────────────────────────────── */
+QDialog {
+    background-color: #1e1e2e;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────── */
+QScrollBar:vertical {
+    background: #1e1e2e;
+    width: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #4a4a6a;
+    border-radius: 4px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #6060a0;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}

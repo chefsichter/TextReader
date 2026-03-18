@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="96" y1="80" x2="416" y2="432" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="40" y="40" width="432" height="432" rx="112" fill="url(#g1)"/>
+
+  <!-- Text lines (unchanged) -->
+  <rect x="118" y="128" width="170" height="24" rx="12" fill="white" opacity="0.95"/>
+  <rect x="118" y="184" width="130" height="24" rx="12" fill="white" opacity="0.9"/>
+  <rect x="118" y="240" width="156" height="24" rx="12" fill="white" opacity="0.85"/>
+
+  <!-- Speaker (slightly more left) -->
+  <path d="M248 190L320 142V370L248 322H200C181.222 322 166 306.778 166 288V224C166 205.222 181.222 190 200 190H248Z" fill="white"/>
+
+  <!-- Sound waves (shifted accordingly) -->
+  <path d="M337 199C358 214 370 237 370 256C370 275 358 298 337 313" stroke="white" stroke-width="22" stroke-linecap="round" opacity="0.95"/>
+  <path d="M362 165C391 190 408 222 408 256C408 290 391 322 362 347" stroke="white" stroke-width="20" stroke-linecap="round" opacity="0.72"/>
+</svg>
