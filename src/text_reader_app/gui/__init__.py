@@ -7,7 +7,6 @@ from typing import Any
 from PySide6.QtWidgets import QApplication
 
 from text_reader_app.capture import CaptureMode, TextCaptureError
-from text_reader_app.domain.models import HistoryEntry, HistoryEntryStatus
 
 from .player_window import PlayerWindow
 from .tray_controller import TrayActionCallbacks, TrayController
@@ -34,7 +33,9 @@ def create_gui_shell(runtime_context: Any) -> list[object]:
         app=app,
         player_window=player_window,
         callbacks=callbacks,
+        initial_capture_mode=runtime_context.capture_mode,
     )
+    _configure_player_window(player_window, runtime_context)
     tray_controller.show()
     return [player_window, tray_controller, runtime_context]
 
@@ -54,6 +55,7 @@ def _build_tray_callbacks(
             player_window,
             CaptureMode.CLIPBOARD,
         ),
+        on_capture_mode_changed=lambda mode: _persist_capture_mode(runtime_context, mode),
     )
 
 
@@ -63,33 +65,63 @@ def _capture_and_present(
     mode: CaptureMode,
 ) -> None:
     try:
-        captured_text = runtime_context.text_capture_service.capture(mode)
-        history_entry = HistoryEntry.new(
-            source_type=captured_text.source_type,
-            text=captured_text.text,
+        stored_entry, synthesis_result = runtime_context.application_controller.process_capture(
+            mode,
         )
-        stored_entry = runtime_context.history_repository.create(history_entry)
     except TextCaptureError as exc:
         player_window.set_status_text("error")
         player_window.set_preview_text(str(exc))
         player_window.show()
         return
 
-    synthesis_result = runtime_context.qwen_speech_synthesizer.synthesize(
-        captured_text.text,
-    )
-    stored_entry.status = _map_synthesis_status_to_history(synthesis_result.status)
-    stored_entry.error_message = None if synthesis_result.ok else synthesis_result.message
-    runtime_context.history_repository.update(stored_entry)
-
-    player_window.set_status_text(synthesis_result.status)
-    player_window.set_preview_text(captured_text.text)
+    _update_player_window_for_capture(runtime_context, player_window, stored_entry)
     player_window.show()
 
 
-def _map_synthesis_status_to_history(status: Any) -> HistoryEntryStatus:
-    if str(status) == "ready":
-        return HistoryEntryStatus.READY
-    if str(status) == "error":
-        return HistoryEntryStatus.FAILED
-    return HistoryEntryStatus.CAPTURED
+def _configure_player_window(player_window: PlayerWindow, runtime_context: Any) -> None:
+    audio_controller = runtime_context.audio_playback_controller
+    player_window.set_jump_labels(runtime_context.jump_seconds)
+    player_window.set_transport_enabled(audio_controller.has_loaded_audio())
+    player_window.set_slider_enabled(audio_controller.can_seek())
+    player_window.connect_play_pause(lambda: _toggle_playback(runtime_context))
+    player_window.connect_stop(audio_controller.stop)
+    player_window.connect_jump_backward(
+        lambda: _jump_playback(runtime_context, -runtime_context.jump_seconds),
+    )
+    player_window.connect_jump_forward(
+        lambda: _jump_playback(runtime_context, runtime_context.jump_seconds),
+    )
+    player_window.connect_seek_requested(audio_controller.seek_to_ms)
+    audio_controller.player.positionChanged.connect(player_window.set_position_ms)
+    audio_controller.player.durationChanged.connect(player_window.set_duration_ms)
+
+
+def _toggle_playback(runtime_context: Any) -> None:
+    audio_controller = runtime_context.audio_playback_controller
+    if audio_controller.is_playing():
+        audio_controller.pause()
+        return
+    audio_controller.play()
+
+
+def _jump_playback(runtime_context: Any, jump_seconds: int) -> None:
+    runtime_context.audio_playback_controller.jump_by_ms(jump_seconds * 1000)
+
+
+def _persist_capture_mode(runtime_context: Any, mode: str) -> None:
+    runtime_context.capture_mode = runtime_context.application_controller.set_capture_mode(
+        mode,
+    )
+
+
+def _update_player_window_for_capture(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+    history_entry: Any,
+) -> None:
+    audio_controller = runtime_context.audio_playback_controller
+    status_text = history_entry.error_message or str(history_entry.status)
+    player_window.set_status_text(status_text)
+    player_window.set_preview_text(history_entry.text)
+    player_window.set_transport_enabled(audio_controller.has_loaded_audio())
+    player_window.set_slider_enabled(audio_controller.can_seek())
