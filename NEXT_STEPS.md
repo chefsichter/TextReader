@@ -124,6 +124,7 @@ Validated in this Linux environment:
 - tray tooltip and current-hotkey menu label updates
 - tray reader/language persistence and settings-window sync
 - tray/settings persistence for Qwen synthesis mode
+- metadata badges now use Qt-compatible fixed-radius pill styling
 - offscreen Linux selection capture smoke test
 - local command bridge smoke test
 - settings persistence + clipboard capture smoke test inside the Qt event loop

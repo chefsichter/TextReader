@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QSlider,
+    QStyleFactory,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -116,9 +117,9 @@ class PlayerWindow(QWidget):
         self._capture_status_value = QLabel("idle")
         self._playback_dot = self._build_dot()
         self._playback_status_value = QLabel("stopped")
-        self._theme_button = QPushButton("Dark")
+        self._theme_button = QPushButton("☾")
         self._theme_button.setObjectName("themeButton")
-        self._theme_button.setFixedWidth(52)
+        self._theme_button.setFixedWidth(30)
 
         # History panel
         self._previous_history_button = QPushButton("← Prev")
@@ -254,7 +255,7 @@ class PlayerWindow(QWidget):
         self._language_badge.setVisible(bool(language))
 
     def set_theme(self, theme: str) -> None:
-        self._theme_button.setText("Light" if theme == "dark" else "Dark")
+        self._theme_button.setText("☀" if theme == "dark" else "☾")
         panel_bg = _PANEL_BG_DARK if theme == "dark" else _PANEL_BG_LIGHT
         self._preview_area.set_bg_color(panel_bg)
 
@@ -383,6 +384,9 @@ class PlayerWindow(QWidget):
 
     def _build_slider(self) -> QSlider:
         slider = QSlider(Qt.Orientation.Horizontal)
+        fusion = QStyleFactory.create("Fusion")
+        if fusion is not None:
+            slider.setStyle(fusion)
         slider.setRange(0, 0)
         slider.setValue(0)
         slider.setEnabled(False)
