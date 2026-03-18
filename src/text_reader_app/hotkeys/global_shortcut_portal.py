@@ -16,7 +16,7 @@ PORTAL_BUS_NAME = "org.freedesktop.portal.Desktop"
 PORTAL_OBJECT_PATH = "/org/freedesktop/portal/desktop"
 PORTAL_INTERFACE = "org.freedesktop.portal.GlobalShortcuts"
 REQUEST_INTERFACE = "org.freedesktop.portal.Request"
-READ_ACTIVE_SOURCE_SHORTCUT_ID = "read-active-source"
+_SHORTCUT_ID = "read-text"
 
 
 class GlobalShortcutPortalStatus(StrEnum):
@@ -271,11 +271,11 @@ class GlobalShortcutPortalService:
                 self._session_handle,
                 [
                     (
-                        READ_ACTIVE_SOURCE_SHORTCUT_ID,
+                        _SHORTCUT_ID,
                         {
                             "description": Variant(
                                 "s",
-                                "Read the currently active source aloud.",
+                                "Read text aloud.",
                             ),
                             "preferred_trigger": Variant("s", preferred_trigger),
                         },
@@ -325,7 +325,7 @@ class GlobalShortcutPortalService:
     ) -> None:
         if session_handle != self._session_handle:
             return
-        if shortcut_id != READ_ACTIVE_SOURCE_SHORTCUT_ID:
+        if shortcut_id != _SHORTCUT_ID:
             return
         if self._callback is not None:
             self._callback()
@@ -355,7 +355,7 @@ def _registration_from_response(results: dict[str, Any]) -> GlobalShortcutRegist
 
     shortcut_id, shortcut_properties = shortcuts[0]
     trigger_description = _read_trigger_description(shortcut_properties)
-    if shortcut_id != READ_ACTIVE_SOURCE_SHORTCUT_ID:
+    if shortcut_id != _SHORTCUT_ID:
         return GlobalShortcutRegistration(
             status=GlobalShortcutPortalStatus.ERROR,
             message="Portal returned an unexpected shortcut identifier.",
