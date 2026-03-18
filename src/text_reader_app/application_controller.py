@@ -287,6 +287,7 @@ class ApplicationController:
         history_entry.language = result.language or history_entry.language
         history_entry.voice = result.speaker or history_entry.voice
         history_entry.audio_path = result.audio_path
+        history_entry.audio_duration_ms = result.audio_duration_ms
         self.history_repository.update(history_entry)
         if history_entry.id is not None:
             self.current_history_entry_id = history_entry.id

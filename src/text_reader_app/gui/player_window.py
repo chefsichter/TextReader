@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QProgressBar,
     QPushButton,
     QSlider,
     QStyleFactory,
@@ -113,12 +114,21 @@ class PlayerWindow(QWidget):
         self.resize(640, 480)
         self._is_updating_slider = False
         self._duration_ms = 0
+        self._synthesis_in_progress = False
 
         # Status panel
         self._capture_dot = self._build_dot()
         self._capture_status_value = QLabel("idle")
         self._playback_dot = self._build_dot()
         self._playback_status_value = QLabel("stopped")
+        self._synthesis_progress_bar = QProgressBar()
+        self._synthesis_progress_bar.setObjectName("synthesisProgressBar")
+        self._synthesis_progress_bar.setRange(0, 100)
+        self._synthesis_progress_bar.setValue(0)
+        self._synthesis_progress_bar.hide()
+        self._synthesis_progress_label = QLabel("")
+        self._synthesis_progress_label.setObjectName("statusLabel")
+        self._synthesis_progress_label.hide()
         self._theme_button = QPushButton("☾")
         self._theme_button.setObjectName("themeButton")
         self._theme_button.setFixedWidth(30)
@@ -189,8 +199,11 @@ class PlayerWindow(QWidget):
         normalized = text.strip() or "idle"
         self._capture_status_value.setText(normalized)
         self._capture_status_value.setToolTip(normalized)
-        active = normalized not in ("idle", "error", "synthesizing")
-        self._set_dot_active(self._capture_dot, active)
+        if normalized == "synthesizing":
+            self._set_dot_state(self._capture_dot, "working")
+            return
+        active = normalized not in ("idle", "error")
+        self._set_dot_state(self._capture_dot, "active" if active else "inactive")
 
     def set_preview_text(self, text: str) -> None:
         self._preview_area.text_edit.setPlainText(
@@ -201,7 +214,7 @@ class PlayerWindow(QWidget):
         self._playback_status_value.setText(state_name)
         playing = state_name == "playing"
         self._play_pause_button.setText("⏸" if playing else "▶")
-        self._set_dot_active(self._playback_dot, playing)
+        self._set_dot_state(self._playback_dot, "active" if playing else "inactive")
 
     def set_position_ms(self, position_ms: int) -> None:
         maximum = max(self._duration_ms, 0)
@@ -228,16 +241,51 @@ class PlayerWindow(QWidget):
         self._jump_forward_button.setText(f"+{s}s")
 
     def set_transport_enabled(self, enabled: bool) -> None:
+        effective_enabled = enabled and not self._synthesis_in_progress
         for btn in (
             self._jump_back_button,
             self._play_pause_button,
             self._jump_forward_button,
             self._stop_button,
         ):
-            btn.setEnabled(enabled)
+            btn.setEnabled(effective_enabled)
 
     def set_slider_enabled(self, enabled: bool) -> None:
-        self._position_slider.setEnabled(enabled)
+        self._position_slider.setEnabled(enabled and not self._synthesis_in_progress)
+
+    def set_synthesis_in_progress(self, in_progress: bool) -> None:
+        self._synthesis_in_progress = in_progress
+        if not in_progress:
+            return
+        self.set_transport_enabled(False)
+        self.set_slider_enabled(False)
+
+    def set_synthesis_progress(self, progress_percent: int, detail_text: str) -> None:
+        self._synthesis_progress_bar.show()
+        self._synthesis_progress_label.show()
+        self._synthesis_progress_bar.setValue(min(max(progress_percent, 0), 100))
+        self._synthesis_progress_label.setText(detail_text)
+
+    def set_synthesis_summary(
+        self,
+        elapsed_ms: int | None,
+        audio_duration_ms: int | None,
+    ) -> None:
+        if elapsed_ms is None or audio_duration_ms is None:
+            self.clear_synthesis_progress()
+            return
+        self._synthesis_progress_bar.show()
+        self._synthesis_progress_bar.setValue(100)
+        self._synthesis_progress_label.show()
+        self._synthesis_progress_label.setText(
+            f"{_format_seconds(elapsed_ms)} for {_format_seconds(audio_duration_ms)} audio",
+        )
+
+    def clear_synthesis_progress(self) -> None:
+        self._synthesis_progress_bar.hide()
+        self._synthesis_progress_bar.setValue(0)
+        self._synthesis_progress_label.hide()
+        self._synthesis_progress_label.clear()
 
     def set_history_position(
         self,
@@ -350,8 +398,10 @@ class PlayerWindow(QWidget):
     def _build_status_panel(self) -> QFrame:
         frame = QFrame()
         frame.setObjectName("statusPanel")
-        row = QHBoxLayout(frame)
-        row.setContentsMargins(10, 7, 10, 7)
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(10, 7, 10, 7)
+        layout.setSpacing(8)
+        row = QHBoxLayout()
         row.setSpacing(6)
         row.addWidget(self._capture_dot)
         row.addWidget(QLabel("Capture"))
@@ -362,7 +412,16 @@ class PlayerWindow(QWidget):
         row.addWidget(self._playback_status_value)
         row.addStretch()
         row.addWidget(self._theme_button)
+        layout.addLayout(row)
+        layout.addLayout(self._build_synthesis_progress_row())
         return frame
+
+    def _build_synthesis_progress_row(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(self._synthesis_progress_bar, 1)
+        row.addWidget(self._synthesis_progress_label)
+        return row
 
     def _build_history_panel(self) -> QFrame:
         frame = QFrame()
@@ -465,8 +524,13 @@ class PlayerWindow(QWidget):
         dot.setFixedSize(10, 10)
         return dot
 
-    def _set_dot_active(self, dot: QLabel, active: bool) -> None:
-        name = "statusDotActive" if active else "statusDotInactive"
+    def _set_dot_state(self, dot: QLabel, state: str) -> None:
+        if state == "working":
+            name = "statusDotWorking"
+        elif state == "active":
+            name = "statusDotActive"
+        else:
+            name = "statusDotInactive"
         dot.setObjectName(name)
         dot.style().unpolish(dot)
         dot.style().polish(dot)
@@ -487,6 +551,10 @@ def _format_ms(milliseconds: int) -> str:
     total_seconds = max(milliseconds, 0) // 1000
     minutes, seconds = divmod(total_seconds, 60)
     return f"{minutes:02d}:{seconds:02d}"
+
+
+def _format_seconds(milliseconds: int) -> str:
+    return f"{max(milliseconds, 0) / 1000:.1f}s"
 
 
 def _parse_context_text(text: str) -> tuple[str, str, str]:

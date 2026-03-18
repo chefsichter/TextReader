@@ -60,6 +60,8 @@ Bereits implementiert:
 - Windows-Selection-Capture als best effort ueber PowerShell/UI Automation
 - echte Qwen-WAV-Synthese
 - Hintergrund-Worker fuer Synthese, damit der UI-Thread responsiv bleibt
+- Fortschrittsanzeige waehrend Synthese mit ETA-Heuristik und gesperrten Transport-Controls
+- Abschlussanzeige mit real gemessener Synthesezeit versus erzeugter Audio-Laenge
 - Audio-Playback mit Slider, Jump und Stop
 - History-Navigation vor/zurueck
 - keyboard hook hotkey backend fuer Linux und Windows, modelliert nach `hotkey-transcriber`
@@ -183,9 +185,11 @@ ROCm:
 2. Die App liest `selection` oder `clipboard`.
 3. Der Text wird sofort als History-Eintrag gespeichert.
 4. Ein Hintergrund-Worker startet die TTS-Synthese.
-5. Nach Abschluss wird der History-Eintrag mit Fehler oder Audio aktualisiert.
-6. Erfolgreiches Audio wird in den Player geladen und kann abgespielt werden.
-7. Player-UI, History-Position und Playback-Metadaten werden aktualisiert.
+5. Waehrenddessen zeigt die UI einen Arbeitsstatus mit ETA-Heuristik und deaktivierten Playback-Controls.
+6. Nach Abschluss wird der History-Eintrag mit Fehler oder Audio aktualisiert.
+7. Die UI zeigt die reale Synthesezeit im Verhaeltnis zur erzeugten Audio-Laenge an.
+8. Erfolgreiches Audio wird in den Player geladen und kann abgespielt werden.
+9. Player-UI, History-Position und Playback-Metadaten werden aktualisiert.
 
 ## Entwicklungssetup
 

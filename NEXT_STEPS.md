@@ -18,6 +18,8 @@ The current codebase contains:
 - tray and settings toggle for Qwen whole-text vs streaming-input synthesis mode
 - player actions for audio export, single-entry delete, and clear-all with confirmation
 - player action to edit the current entry and regenerate it with different text/reader/language
+- synthesis progress feedback with transport-locking during background generation
+- synthesis summary text showing generation time versus produced audio length
 - local command bridge for external triggering and single-instance commands
 - Windows selection backend
 - launcher scripts under `scripts/`
@@ -128,6 +130,8 @@ Validated in this Linux environment:
 - tray/settings persistence for Qwen synthesis mode
 - controller-backed delete/clear history actions and player export button wiring
 - edit/regenerate dialog and controller path for re-synthesizing one existing entry
+- synthesis progress bar, ETA heuristic, and transport/button locking during generation
+- synthesis summary text after successful generation
 - metadata badges now use Qt-compatible fixed-radius pill styling
 - offscreen Linux selection capture smoke test
 - local command bridge smoke test

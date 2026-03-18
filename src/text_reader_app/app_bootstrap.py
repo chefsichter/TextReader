@@ -40,6 +40,9 @@ class RuntimeContext:
     theme: str
     local_command_server: LocalCommandServer | None
     background_jobs: list[object]
+    synthesis_progress_timer: QTimer | None
+    synthesis_started_at: float | None
+    synthesis_estimated_total_ms: int | None
 
 
 def configure_logging() -> None:
@@ -103,6 +106,9 @@ def build_runtime_context() -> RuntimeContext:
         theme=controller.theme(),
         local_command_server=local_command_server,
         background_jobs=[],
+        synthesis_progress_timer=None,
+        synthesis_started_at=None,
+        synthesis_estimated_total_ms=None,
     )
 
 

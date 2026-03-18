@@ -52,6 +52,11 @@ QLabel#statusDotActive {
     border-radius: 5px;
 }
 
+QLabel#statusDotWorking {
+    background-color: #f59e0b;
+    border-radius: 5px;
+}
+
 QLabel#statusDotInactive {
     background-color: #c0c0d8;
     border-radius: 5px;
@@ -276,6 +281,20 @@ QSlider:disabled::add-page:horizontal {
 
 QSlider:disabled::handle:horizontal {
     background: #ffffff;
+}
+
+QProgressBar#synthesisProgressBar {
+    background-color: #ffffff;
+    border: 1px solid #d0d0e8;
+    border-radius: 6px;
+    text-align: center;
+    min-height: 12px;
+    max-height: 12px;
+}
+
+QProgressBar#synthesisProgressBar::chunk {
+    background-color: #6c5ce7;
+    border-radius: 5px;
 }
 
 /* ─── Text-Preview ──────────────────────────────────────── */

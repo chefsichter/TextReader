@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
-from PySide6.QtCore import QThreadPool
+from PySide6.QtCore import QThreadPool, QTimer
 from PySide6.QtWidgets import QApplication, QFileDialog
 
 from text_reader_app.capture import CaptureMode, TextCaptureError
@@ -490,6 +491,9 @@ def _present_history_entry(
     player_window.set_transport_enabled(audio_controller.has_loaded_audio())
     player_window.set_slider_enabled(audio_controller.can_seek())
     player_window.set_playback_state(audio_controller.playback_state_name())
+    if not runtime_context.background_jobs:
+        player_window.set_synthesis_in_progress(False)
+        player_window.clear_synthesis_progress()
     _sync_navigation(player_window, runtime_context)
     _sync_entry_actions(player_window, runtime_context, history_entry)
 
@@ -514,6 +518,7 @@ def _start_synthesis_worker(
 ) -> None:
     worker = SynthesisWorker(runtime_context.application_controller, history_entry)
     runtime_context.background_jobs.append(worker)
+    _begin_synthesis_feedback(runtime_context, player_window, history_entry.text)
     _sync_entry_actions(player_window, runtime_context, history_entry)
     worker.signals.finished.connect(
         lambda entry, result: _finish_synthesis(
@@ -548,6 +553,7 @@ def _start_regeneration_worker(
         request=request,
     )
     runtime_context.background_jobs.append(worker)
+    _begin_synthesis_feedback(runtime_context, player_window, request.text)
     _sync_entry_actions(player_window, runtime_context, history_entry)
     worker.signals.finished.connect(
         lambda entry, result: _finish_synthesis(
@@ -582,6 +588,12 @@ def _finish_synthesis(
         result,
         autoplay=True,
     )
+    _end_synthesis_feedback(
+        runtime_context,
+        player_window,
+        elapsed_ms=getattr(result, "elapsed_ms", None),
+        audio_duration_ms=getattr(result, "audio_duration_ms", None),
+    )
     _discard_background_job(runtime_context, worker)
     _present_history_entry(runtime_context, player_window, updated_entry)
     player_window.set_status_text(result.message if not result.ok else "ready")
@@ -595,6 +607,7 @@ def _handle_synthesis_failure(
     message: str,
     worker: SynthesisWorker,
 ) -> None:
+    _end_synthesis_feedback(runtime_context, player_window)
     _discard_background_job(runtime_context, worker)
     history_entry.error_message = message
     history_entry.status = HistoryEntryStatus.FAILED
@@ -608,6 +621,82 @@ def _handle_synthesis_failure(
 def _discard_background_job(runtime_context: Any, worker: SynthesisWorker) -> None:
     if worker in runtime_context.background_jobs:
         runtime_context.background_jobs.remove(worker)
+
+
+def _begin_synthesis_feedback(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+    text: str,
+) -> None:
+    _stop_synthesis_timer(runtime_context)
+    runtime_context.synthesis_started_at = perf_counter()
+    runtime_context.synthesis_estimated_total_ms = _estimate_synthesis_total_ms(text)
+    player_window.set_synthesis_in_progress(True)
+    _refresh_synthesis_feedback(runtime_context, player_window)
+    timer = QTimer(player_window)
+    timer.setInterval(250)
+    timer.timeout.connect(
+        lambda: _refresh_synthesis_feedback(runtime_context, player_window),
+    )
+    timer.start()
+    runtime_context.synthesis_progress_timer = timer
+
+
+def _end_synthesis_feedback(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+    *,
+    elapsed_ms: int | None = None,
+    audio_duration_ms: int | None = None,
+) -> None:
+    _stop_synthesis_timer(runtime_context)
+    runtime_context.synthesis_started_at = None
+    runtime_context.synthesis_estimated_total_ms = None
+    player_window.set_synthesis_in_progress(False)
+    if elapsed_ms is None or audio_duration_ms is None:
+        player_window.clear_synthesis_progress()
+        return
+    player_window.set_synthesis_summary(elapsed_ms, audio_duration_ms)
+
+
+def _stop_synthesis_timer(runtime_context: Any) -> None:
+    timer = runtime_context.synthesis_progress_timer
+    if timer is None:
+        return
+    timer.stop()
+    timer.deleteLater()
+    runtime_context.synthesis_progress_timer = None
+
+
+def _refresh_synthesis_feedback(runtime_context: Any, player_window: PlayerWindow) -> None:
+    started_at = runtime_context.synthesis_started_at
+    estimated_total_ms = runtime_context.synthesis_estimated_total_ms
+    if started_at is None or estimated_total_ms is None:
+        return
+    elapsed_ms = int((perf_counter() - started_at) * 1000)
+    if elapsed_ms >= estimated_total_ms:
+        player_window.set_synthesis_progress(
+            95,
+            f"Finalizing... {_format_eta_text(elapsed_ms)} elapsed",
+        )
+        return
+    remaining_ms = max(estimated_total_ms - elapsed_ms, 0)
+    progress_percent = min(95, int((elapsed_ms / estimated_total_ms) * 100))
+    player_window.set_synthesis_progress(
+        progress_percent,
+        f"ETA {_format_eta_text(remaining_ms)}",
+    )
+
+
+def _estimate_synthesis_total_ms(text: str) -> int:
+    words = max(1, len(text.split()))
+    characters = max(1, len(text.strip()))
+    return max(2500, 1400 + words * 180 + characters * 18)
+
+
+def _format_eta_text(milliseconds: int) -> str:
+    seconds = max(milliseconds, 0) / 1000
+    return f"~{seconds:.1f}s"
 
 
 def _sync_playback_state(player_window: PlayerWindow, runtime_context: Any) -> None:
@@ -729,6 +818,8 @@ def _regeneration_request(
 
 
 def _clear_presented_entry(player_window: PlayerWindow) -> None:
+    player_window.set_synthesis_in_progress(False)
+    player_window.clear_synthesis_progress()
     player_window.set_preview_text("")
     player_window.set_entry_source_text("")
     player_window.set_entry_context_text("")

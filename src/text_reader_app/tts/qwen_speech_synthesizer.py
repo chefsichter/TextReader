@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 import wave
 
@@ -36,6 +37,8 @@ class QwenSynthesisResult:
     speaker: str | None = None
     language: str | None = None
     model_id: str | None = None
+    elapsed_ms: int | None = None
+    audio_duration_ms: int | None = None
 
     @property
     def ok(self) -> bool:
@@ -160,6 +163,7 @@ class QwenSpeechSynthesizer:
                 message="No output directory was provided for synthesized audio.",
             )
 
+        started_at = perf_counter()
         try:
             selected_speaker, selected_language, selected_non_streaming_mode = (
                 self._resolve_generation_preferences(
@@ -190,6 +194,8 @@ class QwenSpeechSynthesizer:
             speaker=selected_speaker,
             language=selected_language,
             model_id=self._runtime_config.model_id,
+            elapsed_ms=int((perf_counter() - started_at) * 1000),
+            audio_duration_ms=_audio_duration_ms(wavs[0], sample_rate),
         )
 
     def _resolve_speaker(self) -> str:
@@ -264,6 +270,16 @@ def _write_wav_file(audio_path: Path, samples: Any, sample_rate: int) -> None:
         wav_file.setsampwidth(2)
         wav_file.setframerate(int(sample_rate))
         wav_file.writeframes(pcm_bytes)
+
+
+def _audio_duration_ms(samples: Any, sample_rate: int) -> int:
+    if sample_rate <= 0:
+        return 0
+    try:
+        sample_count = len(samples)
+    except TypeError:
+        return 0
+    return int((sample_count / sample_rate) * 1000)
 
 
 def _to_pcm16_bytes(samples: Any) -> bytes:
