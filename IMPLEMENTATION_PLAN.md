@@ -8,6 +8,36 @@ Dieses Dokument sammelt die aktuell geklärten Anforderungen, die recherchierten
 
 Ziel: Der Stand soll spaeter ohne erneute Grundsatzdiskussion wieder aufgenommen und in Code umgesetzt werden koennen.
 
+## Implemented So Far
+
+This section reflects the actual codebase state as of the latest sync, not just the original plan.
+
+Implemented and committed:
+- Python package scaffold
+- Qt bootstrap
+- tray-first GUI shell
+- player window shell with playback state updates
+- SQLite settings repository
+- SQLite history repository
+- clipboard capture path
+- Qwen runtime config
+- real Qwen WAV synthesis path
+- audio playback controller
+- runtime audio cache path
+- PT71 ROCm-based editable development environment
+- Linux/PipeWire startup fix via deferred runtime initialization
+- first Linux global hotkey portal backend
+- runtime hotkey backend selection bootstrap
+
+Implemented but not yet fully finalized:
+- GNOME Shell Wayland hotkey fallback work
+
+Not yet implemented:
+- Linux selection capture path
+- settings UI
+- richer persistent history navigation
+- Windows-specific backends
+
 ## Produktziel
 
 Die App soll selektierten Text oder Clipboard-Text auf Hotkey vorlesen.
@@ -110,6 +140,10 @@ Nicht bevorzugt:
 
 Globaler Hotkey:
 - primaer ueber das XDG Global Shortcuts Portal
+- auf dem aktuellen Zorin/GNOME-Wayland-Desktop ist ein GNOME-Shell-Fallback ueber `org.gnome.Shell.GrabAccelerator` in Arbeit, weil das Portal offenbar nicht verfuegbar ist
+- beide bisher untersuchten Linux-Hotkey-Pfade sind auf dem aktuellen Desktop bereits getestet:
+  - das Portal meldet `org.freedesktop.portal.GlobalShortcuts` als nicht verfuegbar
+  - GNOME Shell lehnt externe `GrabAccelerator`-Registrierungen ab
 
 Auswahl lesen:
 - technisch schwieriger als Clipboard
@@ -218,6 +252,9 @@ Verantwortlich fuer:
 
 `global_shortcut_portal.py`
 - Linux/Wayland-Hotkey ueber XDG Global Shortcuts Portal
+
+`gnome_shell_hotkey.py`
+- GNOME/Zorin-Wayland-Fallback ueber `org.gnome.Shell.GrabAccelerator`
 
 `global_shortcut_windows.py`
 - nativer Windows-Hotkey
@@ -451,6 +488,11 @@ Linux-Dev-Ziel:
 Vorteil:
 - GUI-Start verwendet immer den aktuellen Workspace-Code
 
+Aktueller Ist-Zustand:
+- `.venv` zeigt auf `tests/venv_pt71`
+- diese Umgebung wurde fuer echte Qwen-Synthese validiert
+- Startpfad fuer die App: `.venv/bin/text-reader-app`
+
 Windows-Ziel:
 - ebenfalls `.venv`
 - `pip install -e .`
@@ -483,8 +525,10 @@ Diese Punkte sind fuer die erste Planung ausreichend geklaert, muessen aber bei 
 
 ## Naechster sinnvoller Schritt
 
-Das Projektgeruest anlegen:
-- `pyproject.toml`
-- Paketstruktur unter `src/`
-- Settings- und SQLite-Basis
-- minimal lauffaehige Tray-App mit Player-Fenster
+Den Hotkey auf dem aktuellen Zorin/GNOME-Wayland-Desktop produktiv machen:
+- GNOME-Shell-Fallback als sauberen Degrade-Pfad abschliessen und dokumentieren
+- danach den naechsten praktikablen Linux-Hotkey-Ansatz recherchieren oder einen Desktop-spezifischen Integrationsweg waehlen
+- danach Wave 4 beginnen:
+  - Linux selection capture path
+  - settings UI
+  - persistent history/playback UX

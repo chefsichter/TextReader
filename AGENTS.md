@@ -112,9 +112,28 @@ Before implementing anything substantial:
 - check whether the worktree already contains user changes
 - continue from the next unchecked execution item
 
+## Current Resume Notes
+
+As of 2026-03-18 the repository is beyond the original scaffold:
+- real Qwen WAV synthesis is implemented and validated on the PT71 ROCm environment
+- `.venv` points to `tests/venv_pt71`
+- the app startup hang on Linux/PipeWire was fixed by deferring service initialization until the Qt event loop is running
+- a first Linux hotkey portal backend exists
+- runtime hotkey backend selection exists
+
+Known in-progress area:
+- GNOME Shell hotkey fallback work may be present in the worktree but not yet fully committed
+- on the current Zorin/GNOME Wayland desktop, both known Linux hotkey paths currently degrade cleanly to "not available":
+  - the XDG portal backend reports that `org.freedesktop.portal.GlobalShortcuts` is missing
+  - `org.gnome.Shell.GrabAccelerator` rejects external registrations
+
+When resuming, compare:
+- committed history in `git log`
+- uncommitted work in `git status`
+- the "Resume Point" section in `NEXT_STEPS.md`
+
 ## Documentation Rule
 
 After each meaningful implementation step:
 - update `NEXT_STEPS.md`
 - if architecture or decisions changed, update `IMPLEMENTATION_PLAN.md`
-
