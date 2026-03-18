@@ -36,6 +36,7 @@ class RuntimeContext:
     hotkey_trigger: str
     voice: str
     language: str
+    synthesis_mode: str
     theme: str
     local_command_server: LocalCommandServer | None
     background_jobs: list[object]
@@ -98,6 +99,7 @@ def build_runtime_context() -> RuntimeContext:
         hotkey_trigger=controller.hotkey_trigger(),
         voice=controller.voice(),
         language=controller.language(),
+        synthesis_mode=controller.synthesis_mode(),
         theme=controller.theme(),
         local_command_server=local_command_server,
         background_jobs=[],

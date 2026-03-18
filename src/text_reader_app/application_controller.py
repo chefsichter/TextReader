@@ -106,6 +106,12 @@ class ApplicationController:
         value = self.settings_repository.get_value("theme", "light")
         return "dark" if value == "dark" else "light"
 
+    def synthesis_mode(self) -> str:
+        """Return the configured synthesis mode."""
+
+        value = self.settings_repository.get_value("synthesis_mode", "whole")
+        return "streaming" if value == "streaming" else "whole"
+
     def set_theme(self, theme: str) -> str:
         """Persist the UI theme and return the normalized value."""
 
@@ -122,6 +128,7 @@ class ApplicationController:
             jump_seconds=self.jump_seconds(),
             voice=self.voice(),
             language=self.language(),
+            synthesis_mode=self.synthesis_mode(),
             theme=self.theme(),
         )
 
@@ -133,6 +140,7 @@ class ApplicationController:
         jump_seconds: int,
         voice: str,
         language: str,
+        synthesis_mode: str,
         theme: str = "light",
     ) -> AppPreferences:
         """Persist settings and apply runtime TTS choices immediately."""
@@ -143,6 +151,7 @@ class ApplicationController:
             jump_seconds=self.set_jump_seconds(jump_seconds),
             voice=voice.strip() or self.voice(),
             language=language.strip() or self.language(),
+            synthesis_mode=self.set_synthesis_mode(synthesis_mode),
             theme=self.set_theme(theme),
         )
         self.settings_repository.set("voice", normalized_preferences.voice)
@@ -150,9 +159,17 @@ class ApplicationController:
         self.qwen_speech_synthesizer.update_runtime_preferences(
             speaker=normalized_preferences.voice,
             language=normalized_preferences.language,
+            non_streaming_mode=_non_streaming_mode(normalized_preferences.synthesis_mode),
         )
         self.restart_hotkey_service(normalized_preferences.hotkey_trigger)
         return normalized_preferences
+
+    def set_synthesis_mode(self, synthesis_mode: str) -> str:
+        """Persist the synthesis mode and return the normalized value."""
+
+        normalized = "streaming" if synthesis_mode == "streaming" else "whole"
+        self.settings_repository.set("synthesis_mode", normalized)
+        return normalized
 
     def restart_hotkey_service(self, trigger: str) -> None:
         """Restart the active hotkey service with the updated trigger."""
@@ -356,6 +373,7 @@ def build_application_controller(runtime_paths: AppRuntimePaths) -> ApplicationC
     controller.qwen_speech_synthesizer.update_runtime_preferences(
         speaker=controller.voice(),
         language=controller.language(),
+        non_streaming_mode=_non_streaming_mode(controller.synthesis_mode()),
     )
     return controller
 
@@ -385,6 +403,7 @@ def _ensure_default_settings(controller: ApplicationController) -> None:
         "hotkey_trigger": "Alt+L",
         "voice": controller.qwen_speech_synthesizer.runtime_config.speaker,
         "language": controller.qwen_speech_synthesizer.runtime_config.language,
+        "synthesis_mode": "whole",
         "theme": "light",
     }
     for key, value in defaults.items():
@@ -399,3 +418,7 @@ def _map_synthesis_status(result: QwenSynthesisResult) -> HistoryEntryStatus:
     if status_name == "error":
         return HistoryEntryStatus.FAILED
     return HistoryEntryStatus.CAPTURED
+
+
+def _non_streaming_mode(synthesis_mode: str) -> bool:
+    return synthesis_mode != "streaming"

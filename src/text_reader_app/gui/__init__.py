@@ -45,6 +45,7 @@ def create_gui_shell(runtime_context: Any) -> list[object]:
         initial_hotkey_trigger=runtime_context.hotkey_trigger,
         initial_reader=runtime_context.voice,
         initial_language=runtime_context.language,
+        initial_synthesis_mode=runtime_context.synthesis_mode,
         reader_options=READER_OPTIONS,
         language_options=LANGUAGE_OPTIONS,
     )
@@ -105,6 +106,13 @@ def _build_tray_callbacks(
             settings_window,
             tray_controller,
             language=language,
+        ),
+        on_synthesis_mode_changed=lambda synthesis_mode: _update_synthesis_mode_from_tray(
+            runtime_context,
+            player_window,
+            settings_window,
+            tray_controller,
+            synthesis_mode=synthesis_mode,
         ),
         on_open_settings=settings_window.show,
         on_change_hotkey=lambda: _change_hotkey_from_tray(
@@ -210,6 +218,7 @@ def _save_settings(
         jump_seconds=form_state.jump_seconds,
         voice=form_state.voice,
         language=form_state.language,
+        synthesis_mode=form_state.synthesis_mode,
         theme=form_state.theme,
     )
     runtime_context.capture_mode = preferences.capture_mode
@@ -217,6 +226,7 @@ def _save_settings(
     runtime_context.hotkey_trigger = preferences.hotkey_trigger
     runtime_context.voice = preferences.voice
     runtime_context.language = preferences.language
+    runtime_context.synthesis_mode = preferences.synthesis_mode
     runtime_context.theme = preferences.theme
     player_window.set_jump_labels(preferences.jump_seconds)
     player_window.set_theme(preferences.theme)
@@ -283,6 +293,18 @@ def _update_language_from_tray(
     _sync_settings_views(tray_controller, settings_window, preferences)
 
 
+def _update_synthesis_mode_from_tray(
+    runtime_context: Any,
+    player_window: PlayerWindow,
+    settings_window: SettingsWindow,
+    tray_controller: TrayController,
+    synthesis_mode: str,
+) -> None:
+    settings_window.set_synthesis_mode(synthesis_mode)
+    preferences = _save_settings(runtime_context, player_window, settings_window.state())
+    _sync_settings_views(tray_controller, settings_window, preferences)
+
+
 def _sync_settings_views(
     tray_controller: TrayController,
     settings_window: SettingsWindow,
@@ -292,6 +314,7 @@ def _sync_settings_views(
     tray_controller.set_hotkey_trigger(preferences.hotkey_trigger)
     tray_controller.set_reader(preferences.voice)
     tray_controller.set_language(preferences.language)
+    tray_controller.set_synthesis_mode(preferences.synthesis_mode)
 
 
 def _toggle_playback(runtime_context: Any) -> None:
@@ -516,6 +539,7 @@ def _settings_form_state(preferences: AppPreferences) -> SettingsFormState:
         jump_seconds=preferences.jump_seconds,
         voice=preferences.voice,
         language=preferences.language,
+        synthesis_mode=preferences.synthesis_mode,
         theme=preferences.theme,
     )
 

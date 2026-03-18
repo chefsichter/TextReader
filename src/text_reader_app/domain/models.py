@@ -35,6 +35,7 @@ class AppPreferences:
     jump_seconds: int
     voice: str
     language: str
+    synthesis_mode: str = "whole"
     theme: str = "light"
 
 

@@ -20,7 +20,11 @@ from PySide6.QtWidgets import (
 from text_reader_app.hotkeys import format_hotkey_trigger
 
 from .hotkey_change_dialog import show_hotkey_dialog
-from .preferences_options import LANGUAGE_OPTIONS, READER_OPTIONS
+from .preferences_options import (
+    LANGUAGE_OPTIONS,
+    READER_OPTIONS,
+    SYNTHESIS_MODE_OPTIONS,
+)
 
 
 LoadCallback = Callable[[], "SettingsFormState | None"]
@@ -36,6 +40,7 @@ class SettingsFormState:
     jump_seconds: int = 5
     voice: str = "serena"
     language: str = "english"
+    synthesis_mode: str = "whole"
     theme: str = "light"
 
 
@@ -65,6 +70,7 @@ class SettingsWindow(QWidget):
         self._jump_seconds_box = QSpinBox()
         self._voice_box = QComboBox()
         self._language_box = QComboBox()
+        self._synthesis_mode_box = QComboBox()
         self._theme_box = QComboBox()
         self._build_window()
         self.set_state(initial_state or SettingsFormState())
@@ -78,6 +84,7 @@ class SettingsWindow(QWidget):
             jump_seconds=self._jump_seconds_box.value(),
             voice=self._voice_box.currentText().strip() or "serena",
             language=self._language_box.currentText().strip() or "english",
+            synthesis_mode=self._synthesis_mode_box.currentData() or "whole",
             theme=self._theme_box.currentData() or "light",
         )
 
@@ -89,6 +96,7 @@ class SettingsWindow(QWidget):
         self._jump_seconds_box.setValue(max(1, state.jump_seconds))
         self._select_combo_text(self._voice_box, state.voice)
         self._select_combo_text(self._language_box, state.language)
+        self._select_synthesis_mode(state.synthesis_mode)
         self._select_theme(state.theme)
         self.set_status_text("Settings loaded.")
 
@@ -143,6 +151,11 @@ class SettingsWindow(QWidget):
 
         self._select_combo_text(self._language_box, language)
 
+    def set_synthesis_mode(self, synthesis_mode: str) -> None:
+        """Update the synthesis mode combo without touching unrelated settings."""
+
+        self._select_synthesis_mode(synthesis_mode)
+
     def _build_window(self) -> None:
         self.setWindowTitle("TextReader Settings")
         self.resize(360, 250)
@@ -164,6 +177,8 @@ class SettingsWindow(QWidget):
         self._voice_box.setEditable(True)
         self._language_box.addItems(list(LANGUAGE_OPTIONS))
         self._language_box.setEditable(True)
+        for value, label in SYNTHESIS_MODE_OPTIONS:
+            self._synthesis_mode_box.addItem(label, value)
         self._theme_box.addItem("Light", "light")
         self._theme_box.addItem("Dark", "dark")
 
@@ -175,6 +190,7 @@ class SettingsWindow(QWidget):
         form.addRow("Jump seconds", self._jump_seconds_box)
         form.addRow("Reader", self._voice_box)
         form.addRow("Language", self._language_box)
+        form.addRow("Synthesis", self._synthesis_mode_box)
         form.addRow("Theme", self._theme_box)
         return form
 
@@ -217,6 +233,11 @@ class SettingsWindow(QWidget):
         normalized = "dark" if theme == "dark" else "light"
         index = self._theme_box.findData(normalized, Qt.ItemDataRole.UserRole)
         self._theme_box.setCurrentIndex(max(index, 0))
+
+    def _select_synthesis_mode(self, synthesis_mode: str) -> None:
+        normalized = "streaming" if synthesis_mode == "streaming" else "whole"
+        index = self._synthesis_mode_box.findData(normalized, Qt.ItemDataRole.UserRole)
+        self._synthesis_mode_box.setCurrentIndex(max(index, 0))
 
     def _select_combo_text(self, combo_box: QComboBox, value: str) -> None:
         index = combo_box.findText(value, Qt.MatchFlag.MatchFixedString)

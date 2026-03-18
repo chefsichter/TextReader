@@ -10,7 +10,12 @@ from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
 from text_reader_app.hotkeys import format_hotkey_trigger
 
-from .preferences_options import build_menu_options, format_preference_label
+from .preferences_options import (
+    SYNTHESIS_MODE_OPTIONS,
+    build_menu_options,
+    format_preference_label,
+    synthesis_mode_label,
+)
 from .player_window import PlayerWindow
 
 ActionCallback = Callable[[], None]
@@ -27,6 +32,7 @@ class TrayActionCallbacks:
     on_capture_mode_changed: ModeCallback | None = None
     on_reader_changed: ValueCallback | None = None
     on_language_changed: ValueCallback | None = None
+    on_synthesis_mode_changed: ValueCallback | None = None
     on_open_settings: ActionCallback | None = None
     on_change_hotkey: ActionCallback | None = None
     on_quit: ActionCallback | None = None
@@ -44,6 +50,7 @@ class TrayController:
         initial_hotkey_trigger: str = "Alt+L",
         initial_reader: str = "serena",
         initial_language: str = "german",
+        initial_synthesis_mode: str = "whole",
         reader_options: tuple[str, ...] = (),
         language_options: tuple[str, ...] = (),
     ) -> None:
@@ -62,13 +69,17 @@ class TrayController:
         self._language_options = tuple(language_options)
         self._active_reader = initial_reader.strip() or "serena"
         self._active_language = initial_language.strip() or "german"
+        self._active_synthesis_mode = _normalize_synthesis_mode(initial_synthesis_mode)
         self._hotkey_info_action: QAction | None = None
         self._reader_actions = QActionGroup(self._tray_menu)
         self._reader_actions.setExclusive(True)
         self._language_actions = QActionGroup(self._tray_menu)
         self._language_actions.setExclusive(True)
+        self._synthesis_mode_actions = QActionGroup(self._tray_menu)
+        self._synthesis_mode_actions.setExclusive(True)
         self._reader_action_map: dict[str, QAction] = {}
         self._language_action_map: dict[str, QAction] = {}
+        self._synthesis_mode_action_map: dict[str, QAction] = {}
         self._configure_tray()
 
     def show(self) -> None:
@@ -128,6 +139,14 @@ class TrayController:
             option_values=self._language_options,
         )
 
+    def set_synthesis_mode(self, synthesis_mode: str) -> None:
+        self._active_synthesis_mode = _normalize_synthesis_mode(synthesis_mode)
+        self._refresh_option_menu(
+            option_type="synthesis_mode",
+            active_value=self._active_synthesis_mode,
+            option_values=_synthesis_mode_values(),
+        )
+
     def _set_active_capture_mode(self, mode: str, notify: bool) -> None:
         normalized_mode = _normalize_capture_mode(mode)
         self._active_capture_mode = normalized_mode
@@ -147,6 +166,7 @@ class TrayController:
         self._add_capture_mode_menu()
         self._add_reader_menu()
         self._add_language_menu()
+        self._add_synthesis_mode_menu()
         self._tray_menu.addSeparator()
         self._add_action("Read selection", self._run_selection_action)
         self._add_action("Read clipboard", self._run_clipboard_action)
@@ -199,6 +219,14 @@ class TrayController:
             option_type="language",
             active_value=self._active_language,
             option_values=self._language_options,
+        )
+
+    def _add_synthesis_mode_menu(self) -> None:
+        self._build_option_menu(
+            title="Synthesis mode",
+            option_type="synthesis_mode",
+            active_value=self._active_synthesis_mode,
+            option_values=_synthesis_mode_values(),
         )
 
     def _build_option_menu(
@@ -267,9 +295,14 @@ class TrayController:
             if self._callbacks.on_reader_changed is not None:
                 self._callbacks.on_reader_changed(value)
             return
-        self._active_language = value
-        if self._callbacks.on_language_changed is not None:
-            self._callbacks.on_language_changed(value)
+        if option_type == "language":
+            self._active_language = value
+            if self._callbacks.on_language_changed is not None:
+                self._callbacks.on_language_changed(value)
+            return
+        self._active_synthesis_mode = _normalize_synthesis_mode(value)
+        if self._callbacks.on_synthesis_mode_changed is not None:
+            self._callbacks.on_synthesis_mode_changed(self._active_synthesis_mode)
 
     def _refresh_option_menu(
         self,
@@ -295,7 +328,7 @@ class TrayController:
         active_value: str,
         option_values: tuple[str, ...],
     ) -> None:
-        menu_title = "Reader" if option_type == "reader" else "Language"
+        menu_title = _option_menu_title(option_type)
         menu = self._find_submenu(menu_title)
         if menu is None:
             return
@@ -332,7 +365,7 @@ class TrayController:
         option_values: tuple[str, ...],
     ) -> None:
         for value in build_menu_options(active_value, option_values):
-            action = QAction(format_preference_label(value), menu)
+            action = QAction(_option_label(option_type, value), menu)
             action.setCheckable(True)
             action.setChecked(value == active_value)
             action.triggered.connect(
@@ -348,12 +381,16 @@ class TrayController:
     def _action_group_for(self, option_type: str) -> QActionGroup:
         if option_type == "reader":
             return self._reader_actions
-        return self._language_actions
+        if option_type == "language":
+            return self._language_actions
+        return self._synthesis_mode_actions
 
     def _action_map_for(self, option_type: str) -> dict[str, QAction]:
         if option_type == "reader":
             return self._reader_action_map
-        return self._language_action_map
+        if option_type == "language":
+            return self._language_action_map
+        return self._synthesis_mode_action_map
 
     def _quit(self) -> None:
         if self._callbacks.on_quit is not None:
@@ -370,3 +407,27 @@ def _normalize_capture_mode(mode: str) -> str:
 
 def _build_tray_tooltip(hotkey_trigger: str) -> str:
     return f"TextReader | Hotkey: {hotkey_trigger}"
+
+
+def _normalize_synthesis_mode(mode: str) -> str:
+    if mode == "streaming":
+        return mode
+    return "whole"
+
+
+def _synthesis_mode_values() -> tuple[str, ...]:
+    return tuple(value for value, _label in SYNTHESIS_MODE_OPTIONS)
+
+
+def _option_menu_title(option_type: str) -> str:
+    if option_type == "reader":
+        return "Reader"
+    if option_type == "language":
+        return "Language"
+    return "Synthesis mode"
+
+
+def _option_label(option_type: str, value: str) -> str:
+    if option_type == "synthesis_mode":
+        return synthesis_mode_label(value)
+    return format_preference_label(value)

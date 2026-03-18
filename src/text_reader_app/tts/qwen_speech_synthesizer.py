@@ -66,13 +66,24 @@ class QwenSpeechSynthesizer:
 
         return self._output_directory
 
-    def update_runtime_preferences(self, *, speaker: str, language: str) -> None:
+    def update_runtime_preferences(
+        self,
+        *,
+        speaker: str,
+        language: str,
+        non_streaming_mode: bool | None = None,
+    ) -> None:
         """Apply persisted user choices and invalidate the lazy backend state."""
 
         self._runtime_config = replace(
             self._runtime_config,
             speaker=speaker.strip() or self._runtime_config.speaker,
             language=language.strip() or self._runtime_config.language,
+            non_streaming_mode=(
+                self._runtime_config.non_streaming_mode
+                if non_streaming_mode is None
+                else bool(non_streaming_mode)
+            ),
         )
         self._backend = None
         self._prepare_result = None
@@ -147,6 +158,7 @@ class QwenSpeechSynthesizer:
                 text,
                 speaker=self._resolve_speaker(),
                 language=self._runtime_config.language,
+                non_streaming_mode=self._runtime_config.non_streaming_mode,
             )
             audio_path = _build_output_path(target_directory)
             _write_wav_file(audio_path, wavs[0], sample_rate)

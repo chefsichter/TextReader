@@ -28,6 +28,11 @@ LANGUAGE_OPTIONS: tuple[str, ...] = (
     "italian",
 )
 
+SYNTHESIS_MODE_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("whole", "Whole text"),
+    ("streaming", "Streaming input (Qwen)"),
+)
+
 
 def build_menu_options(current_value: str, defaults: tuple[str, ...]) -> list[str]:
     """Return stable menu options with the current value inserted if needed."""
@@ -45,3 +50,12 @@ def format_preference_label(value: str) -> str:
     if normalized == "auto":
         return "Auto"
     return "_".join(part.capitalize() for part in normalized.split("_") if part)
+
+
+def synthesis_mode_label(mode: str) -> str:
+    """Return a human-friendly label for the synthesis mode setting."""
+
+    for value, label in SYNTHESIS_MODE_OPTIONS:
+        if value == mode:
+            return label
+    return format_preference_label(mode)

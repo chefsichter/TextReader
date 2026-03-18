@@ -14,6 +14,7 @@ class QwenRuntimeConfig:
     attention_implementation: str
     speaker: str
     language: str
+    non_streaming_mode: bool = True
     enable_torch_compile: bool = False
     disable_tunableop: bool = True
     hsa_enable_sdma: int | None = 0
