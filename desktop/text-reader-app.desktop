@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=TextReader
+Comment=Read clipboard or selected text aloud
+Exec=/home/chefsichter/Dokumente/TextReader/scripts/run_text_reader.sh
+Terminal=false
+Categories=Utility;AudioVideo;
+StartupNotify=true

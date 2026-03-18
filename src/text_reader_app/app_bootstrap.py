@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import logging
 import os
 import sys
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import QApplication
 
 from text_reader_app.application_controller import build_application_controller
 from text_reader_app.app_runtime_paths import AppRuntimePaths, build_runtime_paths
+from text_reader_app.hotkeys import LocalCommandServer, send_local_command
 
 
 LOGGER = logging.getLogger(__name__)
@@ -33,6 +35,8 @@ class RuntimeContext:
     capture_mode: str
     jump_seconds: int
     hotkey_trigger: str
+    local_command_server: LocalCommandServer | None
+    background_jobs: list[object]
 
 
 def configure_logging() -> None:
@@ -68,6 +72,7 @@ def build_runtime_context() -> RuntimeContext:
         controller=controller,
         application_name=app.applicationName(),
     )
+    local_command_server = _build_local_command_server(app.applicationName())
     return RuntimeContext(
         settings_repository=controller.settings_repository,
         history_repository=controller.history_repository,
@@ -80,6 +85,8 @@ def build_runtime_context() -> RuntimeContext:
         capture_mode=controller.capture_mode(),
         jump_seconds=controller.jump_seconds(),
         hotkey_trigger=controller.hotkey_trigger(),
+        local_command_server=local_command_server,
+        background_jobs=[],
     )
 
 
@@ -104,6 +111,10 @@ def run(argv: list[str] | None = None) -> int:
     """Boot the application and start the Qt event loop when UI exists."""
 
     configure_logging()
+    cli_options = _parse_cli_arguments(argv)
+    if _forward_command_to_running_instance(cli_options):
+        return 0
+
     app = build_application(argv)
 
     # QAudioOutput/QMediaPlayer require a running event loop on Linux/PipeWire.
@@ -117,6 +128,7 @@ def run(argv: list[str] | None = None) -> int:
             LOGGER.info("Exiting because no GUI shell is registered yet.")
             app.quit()
             return
+        _handle_startup_command(cli_options.command, runtime_context)
         _held_refs.extend(ui_objects)
 
     QTimer.singleShot(0, _deferred_init)
@@ -129,9 +141,73 @@ def main(argv: list[str] | None = None) -> int:
     return run(argv)
 
 
+def _parse_cli_arguments(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument(
+        "--trigger-active-source",
+        action="store_const",
+        const="trigger-active-source",
+        dest="command",
+        help="Send the active-source trigger to a running TextReader instance.",
+    )
+    parser.add_argument(
+        "--show-player",
+        action="store_const",
+        const="show-player",
+        dest="command",
+        help="Ask a running TextReader instance to show its player window.",
+    )
+    return parser.parse_args(argv if argv is not None else sys.argv[1:])
+
+
+def _forward_command_to_running_instance(cli_options: argparse.Namespace) -> bool:
+    command = cli_options.command
+    if command is None:
+        return send_local_command(_local_server_name("TextReader"), "show-player")
+    return send_local_command(_local_server_name("TextReader"), command)
+
+
+def _handle_startup_command(command: str | None, runtime_context: RuntimeContext) -> None:
+    if command is None:
+        return
+    server = runtime_context.local_command_server
+    if server is not None:
+        server.command_received.emit(command)
+
+
+def _build_local_command_server(
+    application_name: str,
+) -> LocalCommandServer | None:
+    server = LocalCommandServer(_local_server_name(application_name))
+    if not server.start():
+        LOGGER.warning("Local command server could not start.")
+        return None
+    return server
+
+
+def _local_server_name(application_name: str) -> str:
+    normalized = application_name.strip().lower().replace(" ", "-")
+    return f"{normalized}-local-bridge"
+
+
 def _build_hotkey_service(controller: Any, application_name: str) -> Any | None:
     callback = controller.handle_hotkey_activation
     trigger = controller.hotkey_trigger()
+    if sys.platform == "win32":
+        windows_service = _build_backend_service(
+            class_path=(
+                "text_reader_app.hotkeys",
+                ("WindowsGlobalHotkeyService",),
+            ),
+            application_name=application_name,
+            trigger=trigger,
+            callback=callback,
+        )
+        if _registration_is_ready(windows_service):
+            LOGGER.info("Using Windows hotkey backend.")
+        else:
+            _log_backend_unavailable("Windows hotkey backend", windows_service)
+        return windows_service
 
     portal_service = _build_backend_service(
         class_path=(
