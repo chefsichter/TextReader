@@ -7,6 +7,7 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from text_reader_app.application_controller import build_application_controller
@@ -95,11 +96,21 @@ def run(argv: list[str] | None = None) -> int:
 
     configure_logging()
     app = build_application(argv)
-    runtime_context = build_runtime_context()
-    ui_objects = create_ui(runtime_context)
-    if not ui_objects:
-        LOGGER.info("Exiting because no GUI shell is registered yet.")
-        return 0
+
+    # QAudioOutput/QMediaPlayer require a running event loop on Linux/PipeWire.
+    # Defer all service initialization until after app.exec() has started.
+    _held_refs: list[object] = []
+
+    def _deferred_init() -> None:
+        runtime_context = build_runtime_context()
+        ui_objects = create_ui(runtime_context)
+        if not ui_objects:
+            LOGGER.info("Exiting because no GUI shell is registered yet.")
+            app.quit()
+            return
+        _held_refs.extend(ui_objects)
+
+    QTimer.singleShot(0, _deferred_init)
     return app.exec()
 
 

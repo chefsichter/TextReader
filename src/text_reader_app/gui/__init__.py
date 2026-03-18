@@ -38,6 +38,7 @@ def create_gui_shell(runtime_context: Any) -> list[object]:
     _configure_player_window(player_window, runtime_context)
     _restore_recent_history(player_window, runtime_context)
     tray_controller.show()
+    player_window.show()
     return [player_window, tray_controller, runtime_context]
 
 
