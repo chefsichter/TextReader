@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QLinearGradient, QPainter
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -16,7 +17,88 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_MAX_DOTS = 12
+_MAX_DOTS = 14
+_PANEL_BG_LIGHT = "#ffffff"
+_PANEL_BG_DARK = "#22223a"
+
+
+class _FadeOverlay(QWidget):
+    """Gradient overlay that fades text content out at the bottom."""
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._hex_bg = _PANEL_BG_LIGHT
+
+    def set_bg_color(self, hex_color: str) -> None:
+        self._hex_bg = hex_color
+        self.update()
+
+    def paintEvent(self, _event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        gradient = QLinearGradient(0, 0, 0, self.height())
+        transparent = QColor(self._hex_bg)
+        transparent.setAlpha(0)
+        opaque = QColor(self._hex_bg)
+        opaque.setAlpha(215)
+        gradient.setColorAt(0.0, transparent)
+        gradient.setColorAt(1.0, opaque)
+        painter.fillRect(self.rect(), gradient)
+
+
+class _PreviewArea(QWidget):
+    """QTextEdit with bottom fade-out and a scroll-to-bottom indicator."""
+
+    _FADE_H = 52
+    _BTN_SIZE = 30
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._edit = QTextEdit(self)
+        self._edit.setObjectName("textPreview")
+        self._edit.setReadOnly(True)
+        self._edit.setFrameShape(QFrame.Shape.NoFrame)
+        self._edit.setPlaceholderText("Captured text will appear here.")
+
+        self._fade = _FadeOverlay(self)
+
+        self._scroll_btn = QPushButton("↓", self)
+        self._scroll_btn.setObjectName("scrollDownButton")
+        self._scroll_btn.setFixedSize(self._BTN_SIZE, self._BTN_SIZE)
+        self._scroll_btn.clicked.connect(self._scroll_to_bottom)
+        self._scroll_btn.hide()
+        self._fade.hide()
+
+        sb = self._edit.verticalScrollBar()
+        sb.valueChanged.connect(self._sync_scroll_state)
+        sb.rangeChanged.connect(lambda _lo, _hi: self._sync_scroll_state(sb.value()))
+
+    @property
+    def text_edit(self) -> QTextEdit:
+        return self._edit
+
+    def set_bg_color(self, hex_color: str) -> None:
+        self._fade.set_bg_color(hex_color)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        w, h = self.width(), self.height()
+        self._edit.setGeometry(0, 0, w, h)
+        self._fade.setGeometry(0, h - self._FADE_H, w, self._FADE_H)
+        self._scroll_btn.move((w - self._BTN_SIZE) // 2, h - self._BTN_SIZE - 8)
+
+    def _sync_scroll_state(self, value: int) -> None:
+        sb = self._edit.verticalScrollBar()
+        scrollable = sb.maximum() > 0
+        at_bottom = value >= sb.maximum() - 2
+        show = scrollable and not at_bottom
+        self._scroll_btn.setVisible(show)
+        self._fade.setVisible(show)
+
+    def _scroll_to_bottom(self) -> None:
+        self._edit.verticalScrollBar().setValue(
+            self._edit.verticalScrollBar().maximum(),
+        )
 
 
 class PlayerWindow(QWidget):
@@ -64,11 +146,17 @@ class PlayerWindow(QWidget):
         self._stop_button.setObjectName("stopButton")
 
         # Text panel
-        self._entry_source_label = QLabel("-")
-        self._entry_source_label.setObjectName("sourceChip")
-        self._entry_meta_label = QLabel("")
-        self._entry_meta_label.setObjectName("entryMetaLabel")
-        self._preview = self._build_preview()
+        self._source_badge = QLabel("-")
+        self._source_badge.setObjectName("sourceChip")
+        self._voice_badge = QLabel("")
+        self._voice_badge.setObjectName("voiceBadge")
+        self._voice_badge.hide()
+        self._language_badge = QLabel("")
+        self._language_badge.setObjectName("languageBadge")
+        self._language_badge.hide()
+        self._timestamp_label = QLabel("")
+        self._timestamp_label.setObjectName("entryTimestamp")
+        self._preview_area = _PreviewArea()
 
         self._build_layout()
 
@@ -82,7 +170,9 @@ class PlayerWindow(QWidget):
         self._set_dot_active(self._capture_dot, active)
 
     def set_preview_text(self, text: str) -> None:
-        self._preview.setPlainText(text.strip() or "No text captured yet.")
+        self._preview_area.text_edit.setPlainText(
+            text.strip() or "No text captured yet.",
+        )
 
     def set_playback_state(self, state_name: str) -> None:
         self._playback_status_value.setText(state_name)
@@ -152,13 +242,21 @@ class PlayerWindow(QWidget):
         self._next_history_button.setEnabled(has_next)
 
     def set_entry_source_text(self, text: str) -> None:
-        self._entry_source_label.setText(text.strip() or "-")
+        self._source_badge.setText(text.strip() or "-")
 
     def set_entry_context_text(self, text: str) -> None:
-        self._entry_meta_label.setText(text.strip())
+        """Parse 'timestamp | voice=X | language=Y' and show as badges."""
+        timestamp, voice, language = _parse_context_text(text)
+        self._timestamp_label.setText(timestamp)
+        self._voice_badge.setText(voice)
+        self._voice_badge.setVisible(bool(voice))
+        self._language_badge.setText(language)
+        self._language_badge.setVisible(bool(language))
 
     def set_theme(self, theme: str) -> None:
         self._theme_button.setText("Light" if theme == "dark" else "Dark")
+        panel_bg = _PANEL_BG_DARK if theme == "dark" else _PANEL_BG_LIGHT
+        self._preview_area.set_bg_color(panel_bg)
 
     # ── Signal connectors ─────────────────────────────────────────
 
@@ -265,17 +363,23 @@ class PlayerWindow(QWidget):
         vbox = QVBoxLayout(frame)
         vbox.setContentsMargins(10, 8, 10, 8)
         vbox.setSpacing(6)
-        header = QHBoxLayout()
-        header.setSpacing(8)
-        header.addWidget(self._entry_source_label)
-        header.addWidget(self._entry_meta_label, 1)
-        vbox.addLayout(header)
+        vbox.addLayout(self._build_badge_row())
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setObjectName("panelSeparator")
         vbox.addWidget(separator)
-        vbox.addWidget(self._preview, 1)
+        vbox.addWidget(self._preview_area, 1)
         return frame
+
+    def _build_badge_row(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        row.addWidget(self._source_badge)
+        row.addWidget(self._voice_badge)
+        row.addWidget(self._language_badge)
+        row.addWidget(self._timestamp_label)
+        row.addStretch()
+        return row
 
     def _build_slider(self) -> QSlider:
         slider = QSlider(Qt.Orientation.Horizontal)
@@ -284,14 +388,6 @@ class PlayerWindow(QWidget):
         slider.setEnabled(False)
         slider.valueChanged.connect(self._sync_position_label_from_slider)
         return slider
-
-    def _build_preview(self) -> QTextEdit:
-        preview = QTextEdit()
-        preview.setObjectName("textPreview")
-        preview.setReadOnly(True)
-        preview.setFrameShape(QFrame.Shape.NoFrame)
-        preview.setPlaceholderText("Captured text will appear here.")
-        return preview
 
     def _build_dot(self) -> QLabel:
         dot = QLabel()
@@ -323,8 +419,29 @@ def _format_ms(milliseconds: int) -> str:
     return f"{minutes:02d}:{seconds:02d}"
 
 
+def _parse_context_text(text: str) -> tuple[str, str, str]:
+    """Parse 'YYYY-MM-DD HH:MM:SS | voice=X | language=Y' into components."""
+    voice = ""
+    language = ""
+    timestamp_raw = ""
+    for part in text.split("|"):
+        part = part.strip()
+        if "=" in part:
+            key, _, val = part.partition("=")
+            key = key.strip()
+            if key == "voice":
+                voice = val.strip()
+            elif key == "language":
+                language = val.strip()
+        else:
+            timestamp_raw = part
+    # Format "2026-03-18 14:38:26" → "2026-03-18 · 14:38:26"
+    timestamp = timestamp_raw.replace(" ", " · ", 1) if timestamp_raw else ""
+    return timestamp, voice, language
+
+
 def _build_dot_html(current: int, total: int) -> str:
-    """Build an HTML dot-indicator string for history position."""
+    """Build HTML dot-indicator: active dot as pill (▬), others as bullets (●)."""
     visible = min(total, _MAX_DOTS)
     if total <= _MAX_DOTS:
         active_index = current - 1
@@ -333,7 +450,9 @@ def _build_dot_html(current: int, total: int) -> str:
     parts = []
     for i in range(visible):
         if i == active_index:
-            parts.append('<span style="color:#6c5ce7;font-size:10px">●</span>')
+            parts.append(
+                '<span style="color:#6c5ce7;font-size:13px;letter-spacing:-1px">▬</span>'
+            )
         else:
-            parts.append('<span style="color:#c0c0d8;font-size:10px">●</span>')
-    return " ".join(parts)
+            parts.append('<span style="color:#c0c0d8;font-size:9px">●</span>')
+    return "&thinsp;".join(parts)

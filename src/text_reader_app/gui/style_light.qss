@@ -58,7 +58,7 @@ QLabel#statusDotInactive {
     border-radius: 5px;
 }
 
-/* ─── Source Chip ────────────────────────────────────────── */
+/* ─── Metadata Badges ────────────────────────────────────── */
 QLabel#sourceChip {
     background-color: #eeeef6;
     color: #5a4bd0;
@@ -67,6 +67,31 @@ QLabel#sourceChip {
     padding: 1px 8px;
     font-size: 11px;
     font-weight: 600;
+}
+
+QLabel#voiceBadge {
+    background-color: #dcfce7;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QLabel#languageBadge {
+    background-color: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QLabel#entryTimestamp {
+    color: #9090b0;
+    font-size: 11px;
 }
 
 /* ─── Panels (QFrame) ───────────────────────────────────── */
@@ -179,6 +204,20 @@ QPushButton#historyNavButton {
     min-width: 60px;
     color: #404060;
     font-size: 12px;
+}
+
+/* ─── Scroll-Down-Button ─────────────────────────────────── */
+QPushButton#scrollDownButton {
+    background-color: rgba(108, 92, 231, 0.85);
+    color: #ffffff;
+    border: none;
+    border-radius: 15px;
+    font-size: 14px;
+    padding: 0;
+}
+
+QPushButton#scrollDownButton:hover {
+    background-color: rgba(92, 75, 208, 0.95);
 }
 
 /* ─── Theme-Toggle-Button ────────────────────────────────── */
