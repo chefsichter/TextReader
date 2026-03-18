@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any
 
 from PySide6.QtCore import QThreadPool
 from PySide6.QtWidgets import QApplication
 
 from text_reader_app.capture import CaptureMode, TextCaptureError
-from text_reader_app.domain.models import AppPreferences, HistoryEntry
+from text_reader_app.domain.models import AppPreferences, HistoryEntry, HistoryEntryStatus
 
 from .player_window import PlayerWindow
 from .settings_window import SettingsFormState, SettingsWindow, SettingsWindowCallbacks
@@ -198,7 +197,6 @@ def _sync_duration(runtime_context: Any, player_window: PlayerWindow, duration_m
 
 def _sync_position(runtime_context: Any, player_window: PlayerWindow, position_ms: int) -> None:
     player_window.set_position_ms(position_ms)
-    runtime_context.application_controller.remember_playback_position(position_ms)
 
 
 def _load_history_neighbor(
@@ -299,6 +297,9 @@ def _handle_synthesis_failure(
 ) -> None:
     _discard_background_job(runtime_context, worker)
     history_entry.error_message = message
+    history_entry.status = HistoryEntryStatus.FAILED
+    if history_entry.id is not None:
+        runtime_context.history_repository.update(history_entry)
     player_window.set_status_text("error")
     player_window.set_preview_text(message)
 
@@ -382,10 +383,13 @@ def _handle_ui_local_command(
 
 
 def _settings_form_state(preferences: AppPreferences) -> SettingsFormState:
-    state = SettingsFormState()
-    for key, value in asdict(preferences).items():
-        setattr(state, key, value)
-    return state
+    return SettingsFormState(
+        capture_mode=preferences.capture_mode,
+        hotkey_trigger=preferences.hotkey_trigger,
+        jump_seconds=preferences.jump_seconds,
+        voice=preferences.voice,
+        language=preferences.language,
+    )
 
 
 def _history_context_text(history_entry: HistoryEntry) -> str:

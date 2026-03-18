@@ -169,7 +169,7 @@ class QwenSpeechSynthesizer:
 
         if speaker in supported:
             return speaker
-        return list(supported)[0]
+        return list(supported)[0] if supported else speaker
 
 
 def _normalize_output_directory(path: str | Path | None) -> Path | None:

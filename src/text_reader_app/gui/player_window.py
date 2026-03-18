@@ -240,7 +240,8 @@ def _format_ms(milliseconds: int) -> str:
 
 
 def _preview_summary(preview: str) -> str:
-    first_line = preview.splitlines()[0].strip()
+    lines = preview.splitlines()
+    first_line = lines[0].strip() if lines else ""
     if not first_line:
         return "No capture loaded."
     summary = first_line[:96]
