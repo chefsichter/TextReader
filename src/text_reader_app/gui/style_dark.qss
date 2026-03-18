@@ -324,6 +324,12 @@ QComboBox::drop-down {
     width: 20px;
 }
 
+QComboBox::down-arrow {
+    image: url({{GUI_DIR}}/arrow_down_dark.svg);
+    width: 10px;
+    height: 6px;
+}
+
 QComboBox QAbstractItemView {
     background-color: #2a2a3e;
     border: 1px solid #404060;
@@ -375,6 +381,16 @@ QKeySequenceEdit:focus {
     border-color: #7c6af7;
 }
 
+/* ─── Hotkey Display (readonly input) ───────────────────── */
+QLabel#hotkeyDisplay {
+    background-color: #2a2a3e;
+    border: 1px solid #404060;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-height: 26px;
+    color: #e4e4f4;
+}
+
 QToolButton#infoButton {
     background-color: transparent;
     color: #9090b8;
@@ -389,13 +405,18 @@ QToolButton#infoButton {
 }
 
 QToolButton#infoButton:hover {
-    background-color: #2e2e4a;
-    border-color: #6c5ce7;
-    color: #e4e4f4;
+    background-color: transparent;
+    border-color: #7c6af7;
+    color: #7c6af7;
+}
+
+QWidget#formRow {
+    background: transparent;
 }
 
 QCheckBox {
     spacing: 8px;
+    background: transparent;
 }
 
 QCheckBox::indicator {

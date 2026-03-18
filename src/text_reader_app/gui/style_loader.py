@@ -17,7 +17,8 @@ def load_stylesheet(theme: str = "light") -> str:
     qss_path = Path(__file__).parent / filename
     if not qss_path.exists():
         return ""
-    return qss_path.read_text(encoding="utf-8")
+    gui_dir = str(Path(__file__).parent).replace("\\", "/")
+    return qss_path.read_text(encoding="utf-8").replace("{{GUI_DIR}}", gui_dir)
 
 
 def apply_stylesheet(theme: str = "light") -> None:

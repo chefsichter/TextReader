@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QSpinBox,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -28,6 +29,13 @@ from .preferences_options import (
     SYNTHESIS_MODE_OPTIONS,
     reader_info_text,
 )
+
+
+def _show_info_popup(button: QToolButton) -> None:
+    """Show the button's tooltip as a click-triggered popup."""
+    tip = button.toolTip()
+    if tip:
+        QToolTip.showText(button.mapToGlobal(QPoint(0, button.height())), tip, button)
 
 
 LoadCallback = Callable[[], "SettingsFormState | None"]
@@ -184,6 +192,7 @@ class SettingsWindow(QWidget):
     def _configure_controls(self) -> None:
         self._capture_mode_box.addItem("Clipboard", "clipboard")
         self._capture_mode_box.addItem("Selection", "selection")
+        self._hotkey_label.setObjectName("hotkeyDisplay")
         self._hotkey_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self._hotkey_button.clicked.connect(self._change_hotkey)
         self._jump_seconds_box.setRange(1, 60)
@@ -195,6 +204,9 @@ class SettingsWindow(QWidget):
         self._reader_info_button.setToolTip("Reader info")
         self._reader_info_button.setAutoRaise(True)
         self._reader_info_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._reader_info_button.clicked.connect(
+            lambda: _show_info_popup(self._reader_info_button),
+        )
         self._voice_box.currentTextChanged.connect(self._update_reader_info)
         self._language_box.addItems(list(LANGUAGE_OPTIONS))
         self._language_box.setEditable(True)
@@ -217,6 +229,7 @@ class SettingsWindow(QWidget):
 
     def _build_hotkey_row(self) -> QWidget:
         container = QWidget(self)
+        container.setObjectName("formRow")
         row = QHBoxLayout(container)
         row.setContentsMargins(0, 0, 0, 0)
         row.addWidget(self._hotkey_label, 1)
@@ -225,6 +238,7 @@ class SettingsWindow(QWidget):
 
     def _build_reader_row(self) -> QWidget:
         container = QWidget(self)
+        container.setObjectName("formRow")
         row = QHBoxLayout(container)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(6)
