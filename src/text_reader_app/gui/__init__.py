@@ -55,6 +55,10 @@ def create_gui_shell(runtime_context: Any) -> list[object]:
         player_window,
     )
     _configure_player_window(player_window, runtime_context)
+    player_window.set_theme(runtime_context.theme)
+    player_window.connect_theme_toggle(
+        lambda: _toggle_theme(runtime_context, player_window),
+    )
     _restore_recent_history(player_window, runtime_context)
     _wire_local_commands(runtime_context, player_window, settings_window)
     tray_controller.show()
@@ -164,6 +168,14 @@ def _persist_capture_mode(runtime_context: Any, mode: str) -> None:
     runtime_context.capture_mode = runtime_context.application_controller.set_capture_mode(mode)
 
 
+def _toggle_theme(runtime_context: Any, player_window: PlayerWindow) -> None:
+    new_theme = "light" if runtime_context.theme == "dark" else "dark"
+    runtime_context.theme = runtime_context.application_controller.set_theme(new_theme)
+    player_window.set_theme(new_theme)
+    from text_reader_app.gui.style_loader import apply_stylesheet
+    apply_stylesheet(new_theme)
+
+
 def _save_settings(
     runtime_context: Any,
     player_window: PlayerWindow,
@@ -182,6 +194,7 @@ def _save_settings(
     runtime_context.hotkey_trigger = preferences.hotkey_trigger
     runtime_context.theme = preferences.theme
     player_window.set_jump_labels(preferences.jump_seconds)
+    player_window.set_theme(preferences.theme)
     player_window.set_status_text("settings saved")
     from text_reader_app.gui.style_loader import apply_stylesheet
     apply_stylesheet(preferences.theme)

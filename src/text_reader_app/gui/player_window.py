@@ -26,6 +26,9 @@ class PlayerWindow(QWidget):
         self.setWindowTitle("TextReader")
         self.resize(640, 440)
         self._title_label = QLabel("TextReader")
+        self._theme_button = QPushButton("Dark")
+        self._theme_button.setObjectName("themeButton")
+        self._theme_button.setFixedWidth(52)
         self._capture_status_value = self._build_value_label("idle")
         self._playback_status_value = self._build_value_label("stopped")
         self._history_position_label = self._build_value_label("No history yet")
@@ -80,6 +83,13 @@ class PlayerWindow(QWidget):
 
     def connect_seek_requested(self, callback: Callable[[int], None]) -> None:
         self._position_slider.sliderMoved.connect(callback)
+
+    def connect_theme_toggle(self, callback: Callable[[], None]) -> None:
+        self._theme_button.clicked.connect(callback)
+
+    def set_theme(self, theme: str) -> None:
+        """Update the button label to reflect the active theme."""
+        self._theme_button.setText("Light" if theme == "dark" else "Dark")
 
     def set_transport_enabled(self, enabled: bool) -> None:
         buttons = (
@@ -191,9 +201,14 @@ class PlayerWindow(QWidget):
         row.addWidget(self._stop_button)
         return row
 
-    def _build_header(self) -> QLabel:
+    def _build_header(self) -> QWidget:
         self._title_label.setObjectName("playerTitle")
-        return self._title_label
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(self._title_label, 1)
+        row.addWidget(self._theme_button)
+        return container
 
     def _build_status_panel(self) -> QFrame:
         frame = QFrame()

@@ -134,6 +134,23 @@ QPushButton#historyNavButton {
     font-size: 12px;
 }
 
+/* ─── Theme-Toggle-Button ────────────────────────────────── */
+QPushButton#themeButton {
+    background-color: transparent;
+    border: 1px solid #c8c8e0;
+    border-radius: 5px;
+    color: #606080;
+    font-size: 11px;
+    padding: 2px 8px;
+    min-height: 22px;
+}
+
+QPushButton#themeButton:hover {
+    background-color: #e8e8f4;
+    border-color: #a0a0d0;
+    color: #1a1a2e;
+}
+
 /* ─── Slider ────────────────────────────────────────────── */
 QSlider::groove:horizontal {
     height: 4px;
