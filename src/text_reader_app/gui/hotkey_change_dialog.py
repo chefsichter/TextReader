@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
 
 from text_reader_app.hotkeys import format_hotkey_trigger
 
+from .style_loader import load_app_icon
+
 
 def show_hotkey_dialog(
     parent: QWidget | None = None,
@@ -24,6 +26,8 @@ def show_hotkey_dialog(
 
     dialog = QDialog(parent)
     dialog.setWindowTitle("Change Hotkey")
+    dialog.setWindowIcon(load_app_icon())
+    dialog.resize(360, 140)
     layout = QVBoxLayout(dialog)
     layout.addWidget(QLabel("Enter a new hotkey:"))
     sequence_edit = QKeySequenceEdit(dialog)

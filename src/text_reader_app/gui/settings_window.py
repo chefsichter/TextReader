@@ -117,6 +117,16 @@ class SettingsWindow(QWidget):
         self._callbacks.on_save_requested(self.state())
         self.set_status_text("Settings saved.")
 
+    def set_save_callback(self, callback: SaveCallback | None) -> None:
+        """Replace the save callback after construction when wiring the GUI."""
+
+        self._callbacks.on_save_requested = callback
+
+    def change_hotkey(self) -> None:
+        """Open the hotkey capture dialog from external GUI actions."""
+
+        self._change_hotkey()
+
     def _build_window(self) -> None:
         self.setWindowTitle("TextReader Settings")
         self.resize(360, 250)

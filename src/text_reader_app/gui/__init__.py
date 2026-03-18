@@ -40,8 +40,19 @@ def create_gui_shell(runtime_context: Any) -> list[object]:
     tray_controller = TrayController(
         app=app,
         player_window=player_window,
-        callbacks=_build_tray_callbacks(runtime_context, player_window, settings_window),
+        callbacks=_build_tray_callbacks(
+            runtime_context,
+            player_window,
+            settings_window,
+        ),
         initial_capture_mode=runtime_context.capture_mode,
+        initial_hotkey_trigger=runtime_context.hotkey_trigger,
+    )
+    _wire_tray_hotkey_change(
+        tray_controller,
+        runtime_context,
+        settings_window,
+        player_window,
     )
     _configure_player_window(player_window, runtime_context)
     _restore_recent_history(player_window, runtime_context)
@@ -69,6 +80,11 @@ def _build_tray_callbacks(
         ),
         on_capture_mode_changed=lambda mode: _persist_capture_mode(runtime_context, mode),
         on_open_settings=settings_window.show,
+        on_change_hotkey=lambda: _change_hotkey_from_tray(
+            runtime_context,
+            settings_window,
+            player_window,
+        ),
     )
 
 
@@ -169,6 +185,32 @@ def _save_settings(
     player_window.set_status_text("settings saved")
     from text_reader_app.gui.style_loader import apply_stylesheet
     apply_stylesheet(preferences.theme)
+
+
+def _change_hotkey_from_tray(
+    runtime_context: Any,
+    settings_window: SettingsWindow,
+    player_window: PlayerWindow,
+) -> None:
+    settings_window.change_hotkey()
+    _save_settings(runtime_context, player_window, settings_window.state())
+
+
+def _wire_tray_hotkey_change(
+    tray_controller: TrayController,
+    runtime_context: Any,
+    settings_window: SettingsWindow,
+    player_window: PlayerWindow,
+) -> None:
+    original_save_callback = settings_window._callbacks.on_save_requested
+
+    def save_and_refresh(form_state: SettingsFormState) -> None:
+        if original_save_callback is not None:
+            original_save_callback(form_state)
+        tray_controller.set_hotkey_trigger(form_state.hotkey_trigger)
+
+    settings_window.set_save_callback(save_and_refresh)
+    tray_controller.set_hotkey_trigger(runtime_context.hotkey_trigger)
 
 
 def _toggle_playback(runtime_context: Any) -> None:

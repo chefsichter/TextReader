@@ -8,6 +8,8 @@ from typing import Callable
 from PySide6.QtGui import QAction, QActionGroup, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
+from text_reader_app.hotkeys import format_hotkey_trigger
+
 from .player_window import PlayerWindow
 
 ActionCallback = Callable[[], None]
@@ -22,6 +24,7 @@ class TrayActionCallbacks:
     on_read_clipboard: ActionCallback | None = None
     on_capture_mode_changed: ModeCallback | None = None
     on_open_settings: ActionCallback | None = None
+    on_change_hotkey: ActionCallback | None = None
     on_quit: ActionCallback | None = None
 
 
@@ -34,6 +37,7 @@ class TrayController:
         player_window: PlayerWindow | None = None,
         callbacks: TrayActionCallbacks | None = None,
         initial_capture_mode: str = "selection",
+        initial_hotkey_trigger: str = "Alt+L",
     ) -> None:
         self._app = app
         self._player_window = player_window or PlayerWindow()
@@ -45,6 +49,8 @@ class TrayController:
         self._selection_mode_action: QAction | None = None
         self._clipboard_mode_action: QAction | None = None
         self._active_capture_mode = _normalize_capture_mode(initial_capture_mode)
+        self._hotkey_trigger = format_hotkey_trigger(initial_hotkey_trigger)
+        self._hotkey_info_action: QAction | None = None
         self._configure_tray()
 
     def show(self) -> None:
@@ -66,11 +72,22 @@ class TrayController:
             return
         self._callbacks.on_open_settings()
 
+    def change_hotkey(self) -> None:
+        if self._callbacks.on_change_hotkey is None:
+            return
+        self._callbacks.on_change_hotkey()
+
     def active_capture_mode(self) -> str:
         return self._active_capture_mode
 
     def set_active_capture_mode(self, mode: str) -> None:
         self._set_active_capture_mode(mode, notify=True)
+
+    def set_hotkey_trigger(self, trigger: str) -> None:
+        self._hotkey_trigger = format_hotkey_trigger(trigger)
+        if self._hotkey_info_action is not None:
+            self._hotkey_info_action.setText(f"Current hotkey: {self._hotkey_trigger}")
+        self._tray_icon.setToolTip(_build_tray_tooltip(self._hotkey_trigger))
 
     def _set_active_capture_mode(self, mode: str, notify: bool) -> None:
         normalized_mode = _normalize_capture_mode(mode)
@@ -83,7 +100,7 @@ class TrayController:
             self._callbacks.on_capture_mode_changed(normalized_mode)
 
     def _configure_tray(self) -> None:
-        self._tray_icon.setToolTip("TextReader")
+        self._tray_icon.setToolTip(_build_tray_tooltip(self._hotkey_trigger))
         self._tray_icon.activated.connect(self._handle_activation)
         self._add_action("Open player", self.show_player)
         self._add_action("Open settings", self.show_settings)
@@ -92,6 +109,8 @@ class TrayController:
         self._tray_menu.addSeparator()
         self._add_action("Read selection", self._run_selection_action)
         self._add_action("Read clipboard", self._run_clipboard_action)
+        self._tray_menu.addSeparator()
+        self._add_hotkey_actions()
         self._tray_menu.addSeparator()
         self._add_action("Quit", self._quit)
         self._tray_icon.setContextMenu(self._tray_menu)
@@ -115,6 +134,15 @@ class TrayController:
         mode_menu.addAction(self._selection_mode_action)
         mode_menu.addAction(self._clipboard_mode_action)
         self._set_active_capture_mode(self._active_capture_mode, notify=False)
+
+    def _add_hotkey_actions(self) -> None:
+        self._hotkey_info_action = QAction(
+            f"Current hotkey: {self._hotkey_trigger}",
+            self._tray_menu,
+        )
+        self._hotkey_info_action.setEnabled(False)
+        self._tray_menu.addAction(self._hotkey_info_action)
+        self._add_action("Change hotkey…", self.change_hotkey)
 
     def _build_mode_action(self, label: str, mode: str) -> QAction:
         action = QAction(label, self._tray_menu)
@@ -167,3 +195,7 @@ def _normalize_capture_mode(mode: str) -> str:
     if mode == "clipboard":
         return mode
     return "selection"
+
+
+def _build_tray_tooltip(hotkey_trigger: str) -> str:
+    return f"TextReader | Hotkey: {hotkey_trigger}"
