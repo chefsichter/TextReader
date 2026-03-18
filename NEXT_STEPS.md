@@ -18,8 +18,9 @@ The initial application scaffold now exists:
 - placeholder Qwen runtime config
 - audio playback shell
 - clipboard capture path
-- lazy Qwen synthesizer shell
+- Qwen synthesizer with real WAV output path when dependencies are available
 - first tray callback flow for clipboard capture into history
+- controller-managed audio cache path and playback handoff
 
 Primary planning document:
 - `IMPLEMENTATION_PLAN.md`
@@ -29,10 +30,10 @@ Repository guidance:
 
 ## Immediate Next Step
 
-Turn the current shells into the first real vertical slice:
-- write real Qwen audio files
-- load/play generated audio through the playback controller
-- wire player controls to playback state and seek
+Turn the current shells into a polished first vertical slice:
+- validate real Qwen generation in the editable `.venv`
+- wire player controls more fully to playback state and seek updates
+- add the first hotkey backend
 
 ## Execution Checklist
 
@@ -49,6 +50,8 @@ Turn the current shells into the first real vertical slice:
 - [x] Add clipboard capture path
 - [x] Add Qwen synthesizer shell
 - [x] Connect tray clipboard action to capture + history + synth shell status
+- [x] Add real WAV output path for Qwen synthesis when runtime dependencies exist
+- [x] Route synthesized audio into the playback controller
 
 ## Implementation Order
 
@@ -72,7 +75,7 @@ Turn the current shells into the first real vertical slice:
 - Add Qwen runtime integration
 - Add clipboard read path
 - Add hotkey integration
-- Status: clipboard path and lazy Qwen shell complete, real synthesis + hotkey pending
+- Status: clipboard path and real synthesis path are implemented; runtime validation + hotkey pending
 
 ### Wave 4
 
@@ -92,6 +95,7 @@ Turn the current shells into the first real vertical slice:
 - Audio seek behavior must be verified early with the chosen playback stack.
 - Offscreen bootstrap test works, but system tray behavior still needs a real desktop session.
 - Full offscreen GUI+audio smoke tests are not reliable in headless mode because Qt tray/multimedia lifecycle can stay alive even when partial checks pass.
+- The editable `.venv` still lacks `qwen_tts`/`torch`, so the real synthesis path is implemented but not yet executable there.
 
 ## Definition Of Done For The First Vertical Slice
 

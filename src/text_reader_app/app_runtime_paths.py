@@ -22,6 +22,7 @@ def build_runtime_paths(application_name: str) -> AppRuntimePaths:
 
     data_directory = _resolve_data_directory(application_name)
     audio_cache_directory = data_directory / "audio_cache"
+    audio_cache_directory.mkdir(parents=True, exist_ok=True)
     return AppRuntimePaths(
         data_directory=data_directory,
         database_path=data_directory / "text_reader.sqlite3",

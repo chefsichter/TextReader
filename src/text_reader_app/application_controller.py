@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 
 from text_reader_app.audio import AudioPlaybackController
@@ -10,7 +11,11 @@ from text_reader_app.capture import CaptureMode, TextCaptureService
 from text_reader_app.domain.models import HistoryEntry, HistoryEntryStatus
 from text_reader_app.history import HistoryRepository
 from text_reader_app.settings import SettingsRepository
-from text_reader_app.tts import QwenSpeechSynthesizer, QwenSynthesisResult
+from text_reader_app.tts import (
+    QwenSpeechSynthesizer,
+    QwenSynthesisResult,
+    QwenSynthesizerStatus,
+)
 
 
 @dataclass(slots=True)
@@ -61,9 +66,10 @@ class ApplicationController:
         """Attempt synthesis and load the resulting audio if one exists."""
 
         result = self.qwen_speech_synthesizer.synthesize(text)
-        if result.audio_path:
-            self.audio_playback_controller.load_audio(result.audio_path)
-        return result
+        if not result.ok or not result.audio_path:
+            return result
+
+        return self._load_result_audio(result)
 
     def capture_and_store(self, mode: CaptureMode | str) -> HistoryEntry:
         """Capture text for the requested mode and persist it immediately."""
@@ -96,6 +102,17 @@ class ApplicationController:
         history_entry.audio_path = result.audio_path
         self.history_repository.update(history_entry)
 
+    def _load_result_audio(self, result: QwenSynthesisResult) -> QwenSynthesisResult:
+        try:
+            self.audio_playback_controller.load_audio(result.audio_path)
+            self.audio_playback_controller.play()
+        except Exception as exc:
+            return QwenSynthesisResult(
+                status=QwenSynthesizerStatus.ERROR,
+                message=f"Generated audio could not be loaded: {exc}",
+            )
+        return result
+
 
 def build_application_controller(runtime_paths: AppRuntimePaths) -> ApplicationController:
     """Create and initialize the runtime services for the current app slice."""
@@ -109,11 +126,29 @@ def build_application_controller(runtime_paths: AppRuntimePaths) -> ApplicationC
         history_repository=history_repository,
         text_capture_service=TextCaptureService(),
         audio_playback_controller=AudioPlaybackController(),
-        qwen_speech_synthesizer=QwenSpeechSynthesizer(),
+        qwen_speech_synthesizer=_build_qwen_speech_synthesizer(runtime_paths),
         runtime_paths=runtime_paths,
     )
     _ensure_default_settings(controller)
     return controller
+
+
+def _build_qwen_speech_synthesizer(
+    runtime_paths: AppRuntimePaths,
+) -> QwenSpeechSynthesizer:
+    constructor = QwenSpeechSynthesizer
+    parameters = inspect.signature(constructor).parameters
+    if "output_directory" in parameters:
+        return constructor(output_directory=runtime_paths.audio_cache_directory)
+    if "audio_cache_directory" in parameters:
+        return constructor(audio_cache_directory=runtime_paths.audio_cache_directory)
+
+    synthesizer = constructor()
+    if hasattr(synthesizer, "set_output_directory"):
+        synthesizer.set_output_directory(runtime_paths.audio_cache_directory)
+    elif hasattr(synthesizer, "set_audio_cache_directory"):
+        synthesizer.set_audio_cache_directory(runtime_paths.audio_cache_directory)
+    return synthesizer
 
 
 def _ensure_default_settings(controller: ApplicationController) -> None:
