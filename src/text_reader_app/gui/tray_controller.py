@@ -14,6 +14,7 @@ from .preferences_options import (
     SYNTHESIS_MODE_OPTIONS,
     build_menu_options,
     format_preference_label,
+    reader_info_text,
     synthesis_mode_label,
 )
 from .player_window import PlayerWindow
@@ -327,6 +328,7 @@ class TrayController:
     ) -> None:
         for value in build_menu_options(active_value, option_values):
             action = QAction(_option_label(option_type, value), menu)
+            action.setToolTip(_option_tooltip(option_type, value))
             action.setCheckable(True)
             action.setChecked(value == active_value)
             action.triggered.connect(
@@ -386,3 +388,9 @@ def _option_label(option_type: str, value: str) -> str:
     if option_type == "synthesis_mode":
         return synthesis_mode_label(value)
     return format_preference_label(value)
+
+
+def _option_tooltip(option_type: str, value: str) -> str:
+    if option_type == "reader":
+        return reader_info_text(value)
+    return ""

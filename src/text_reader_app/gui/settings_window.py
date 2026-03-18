@@ -24,6 +24,7 @@ from .preferences_options import (
     LANGUAGE_OPTIONS,
     READER_OPTIONS,
     SYNTHESIS_MODE_OPTIONS,
+    reader_info_text,
 )
 
 
@@ -69,6 +70,9 @@ class SettingsWindow(QWidget):
         self._hotkey_button = QPushButton("Change")
         self._jump_seconds_box = QSpinBox()
         self._voice_box = QComboBox()
+        self._reader_info_label = QLabel("")
+        self._reader_info_label.setObjectName("readerInfoLabel")
+        self._reader_info_label.setWordWrap(True)
         self._language_box = QComboBox()
         self._synthesis_mode_box = QComboBox()
         self._theme_box = QComboBox()
@@ -95,6 +99,7 @@ class SettingsWindow(QWidget):
         self._hotkey_label.setText(format_hotkey_trigger(state.hotkey_trigger))
         self._jump_seconds_box.setValue(max(1, state.jump_seconds))
         self._select_combo_text(self._voice_box, state.voice)
+        self._update_reader_info(state.voice)
         self._select_combo_text(self._language_box, state.language)
         self._select_synthesis_mode(state.synthesis_mode)
         self._select_theme(state.theme)
@@ -175,6 +180,7 @@ class SettingsWindow(QWidget):
         self._jump_seconds_box.setSuffix(" s")
         self._voice_box.addItems(list(READER_OPTIONS))
         self._voice_box.setEditable(True)
+        self._voice_box.currentTextChanged.connect(self._update_reader_info)
         self._language_box.addItems(list(LANGUAGE_OPTIONS))
         self._language_box.setEditable(True)
         for value, label in SYNTHESIS_MODE_OPTIONS:
@@ -189,6 +195,7 @@ class SettingsWindow(QWidget):
         form.addRow("Hotkey", self._build_hotkey_row())
         form.addRow("Jump seconds", self._jump_seconds_box)
         form.addRow("Reader", self._voice_box)
+        form.addRow("", self._reader_info_label)
         form.addRow("Language", self._language_box)
         form.addRow("Synthesis", self._synthesis_mode_box)
         form.addRow("Theme", self._theme_box)
@@ -245,6 +252,11 @@ class SettingsWindow(QWidget):
             combo_box.setCurrentIndex(index)
             return
         combo_box.setEditText(value)
+
+    def _update_reader_info(self, reader: str) -> None:
+        info_text = reader_info_text(reader)
+        self._reader_info_label.setText(info_text)
+        self._voice_box.setToolTip(info_text)
 
     def _change_hotkey(self) -> None:
         updated_trigger = show_hotkey_dialog(
