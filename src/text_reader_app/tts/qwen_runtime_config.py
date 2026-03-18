@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(slots=True, frozen=True)
@@ -15,9 +16,11 @@ class QwenRuntimeConfig:
     speaker: str
     language: str
     non_streaming_mode: bool = True
-    enable_torch_compile: bool = False
+    enable_torch_compile: bool = True
     disable_tunableop: bool = True
     hsa_enable_sdma: int | None = 0
+    miopen_cache_dir: Path | None = None
+    torch_compile_cache_dir: Path | None = None
 
 
 def build_default_qwen_runtime_config() -> QwenRuntimeConfig:

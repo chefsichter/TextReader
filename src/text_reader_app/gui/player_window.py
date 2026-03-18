@@ -554,7 +554,16 @@ def _format_ms(milliseconds: int) -> str:
 
 
 def _format_seconds(milliseconds: int) -> str:
-    return f"{max(milliseconds, 0) / 1000:.1f}s"
+    total_s = max(milliseconds, 0) / 1000
+    if total_s < 60:
+        return f"{total_s:.1f}s"
+    total_s_int = int(total_s)
+    if total_s_int < 3600:
+        m, s = divmod(total_s_int, 60)
+        return f"{m}m {s}s"
+    h, remainder = divmod(total_s_int, 3600)
+    m, s = divmod(remainder, 60)
+    return f"{h}h {m}m {s}s"
 
 
 def _parse_context_text(text: str) -> tuple[str, str, str]:

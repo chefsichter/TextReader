@@ -126,6 +126,22 @@ class QwenSpeechSynthesizer:
             )
             return self._prepare_result
 
+        if self._runtime_config.enable_torch_compile:
+            try:
+                self._backend = torch.compile(self._backend)
+            except Exception:
+                pass
+
+        try:
+            self._backend.generate_custom_voice(
+                "Warmup.",
+                speaker=self._runtime_config.speaker,
+                language=self._runtime_config.language,
+                non_streaming_mode=True,
+            )
+        except Exception:
+            pass
+
         self._prepare_result = QwenSynthesisResult(
             status=QwenSynthesizerStatus.READY,
             message="Qwen backend prepared successfully.",
@@ -312,3 +328,10 @@ def _apply_env_vars(config: "QwenRuntimeConfig") -> None:
         os.environ["HSA_ENABLE_SDMA"] = str(config.hsa_enable_sdma)
     if config.disable_tunableop:
         os.environ["PYTORCH_TUNABLEOP_ENABLED"] = "0"
+    if config.miopen_cache_dir is not None:
+        config.miopen_cache_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["MIOPEN_USER_DB_PATH"] = str(config.miopen_cache_dir)
+        os.environ.setdefault("MIOPEN_FIND_MODE", "2")
+    if config.torch_compile_cache_dir is not None:
+        config.torch_compile_cache_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["TORCHINDUCTOR_CACHE_DIR"] = str(config.torch_compile_cache_dir)

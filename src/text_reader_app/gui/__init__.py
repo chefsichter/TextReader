@@ -588,14 +588,13 @@ def _finish_synthesis(
         result,
         autoplay=True,
     )
-    _end_synthesis_feedback(
-        runtime_context,
-        player_window,
-        elapsed_ms=getattr(result, "elapsed_ms", None),
-        audio_duration_ms=getattr(result, "audio_duration_ms", None),
-    )
+    _end_synthesis_feedback(runtime_context, player_window)
     _discard_background_job(runtime_context, worker)
     _present_history_entry(runtime_context, player_window, updated_entry)
+    player_window.set_synthesis_summary(
+        getattr(result, "elapsed_ms", None),
+        getattr(result, "audio_duration_ms", None),
+    )
     player_window.set_status_text(result.message if not result.ok else "ready")
     _sync_media_availability(player_window, runtime_context)
 
@@ -695,8 +694,16 @@ def _estimate_synthesis_total_ms(text: str) -> int:
 
 
 def _format_eta_text(milliseconds: int) -> str:
-    seconds = max(milliseconds, 0) / 1000
-    return f"~{seconds:.1f}s"
+    total_s = max(milliseconds, 0) / 1000
+    if total_s < 60:
+        return f"~{total_s:.1f}s"
+    total_s_int = int(total_s)
+    if total_s_int < 3600:
+        m, s = divmod(total_s_int, 60)
+        return f"~{m}m {s}s"
+    h, remainder = divmod(total_s_int, 3600)
+    m, s = divmod(remainder, 60)
+    return f"~{h}h {m}m {s}s"
 
 
 def _sync_playback_state(player_window: PlayerWindow, runtime_context: Any) -> None:

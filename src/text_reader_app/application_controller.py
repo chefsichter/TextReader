@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import inspect
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from text_reader_app.audio import AudioPlaybackController
@@ -18,9 +17,11 @@ from text_reader_app.domain.models import (
 from text_reader_app.history import HistoryRepository
 from text_reader_app.settings import SettingsRepository
 from text_reader_app.tts import (
+    QwenRuntimeConfig,
     QwenSpeechSynthesizer,
     QwenSynthesisResult,
     QwenSynthesizerStatus,
+    build_default_qwen_runtime_config,
 )
 
 
@@ -495,19 +496,16 @@ def build_application_controller(runtime_paths: AppRuntimePaths) -> ApplicationC
 def _build_qwen_speech_synthesizer(
     runtime_paths: AppRuntimePaths,
 ) -> QwenSpeechSynthesizer:
-    constructor = QwenSpeechSynthesizer
-    parameters = inspect.signature(constructor).parameters
-    if "output_directory" in parameters:
-        return constructor(output_directory=runtime_paths.audio_cache_directory)
-    if "audio_cache_directory" in parameters:
-        return constructor(audio_cache_directory=runtime_paths.audio_cache_directory)
-
-    synthesizer = constructor()
-    if hasattr(synthesizer, "set_output_directory"):
-        synthesizer.set_output_directory(runtime_paths.audio_cache_directory)
-    elif hasattr(synthesizer, "set_audio_cache_directory"):
-        synthesizer.set_audio_cache_directory(runtime_paths.audio_cache_directory)
-    return synthesizer
+    gpu = runtime_paths.gpu_cache_directory
+    runtime_config = replace(
+        build_default_qwen_runtime_config(),
+        miopen_cache_dir=gpu / "miopen",
+        torch_compile_cache_dir=gpu / "inductor",
+    )
+    return QwenSpeechSynthesizer(
+        runtime_config=runtime_config,
+        output_directory=runtime_paths.audio_cache_directory,
+    )
 
 
 def _ensure_default_settings(controller: ApplicationController) -> None:
