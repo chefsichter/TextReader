@@ -29,7 +29,7 @@ class PlayerWindow(QWidget):
         self._duration_ms = 0
         self._position_slider = self._build_slider()
         self._jump_back_button = QPushButton("-5s")
-        self._play_pause_button = QPushButton("Play / Pause")
+        self._play_pause_button = QPushButton("Play")
         self._jump_forward_button = QPushButton("+5s")
         self._stop_button = QPushButton("Stop")
         self._preview = self._build_preview()
@@ -70,6 +70,12 @@ class PlayerWindow(QWidget):
     def set_slider_enabled(self, enabled: bool) -> None:
         self._position_slider.setEnabled(enabled)
 
+    def set_playback_state(self, state_name: str) -> None:
+        if state_name == "playing":
+            self._play_pause_button.setText("Pause")
+            return
+        self._play_pause_button.setText("Play")
+
     def set_position_ms(self, position_ms: int) -> None:
         maximum = max(self._duration_ms, 0)
         clamped_position = min(max(position_ms, 0), maximum)
@@ -82,6 +88,12 @@ class PlayerWindow(QWidget):
         self._duration_ms = max(duration_ms, 0)
         self._position_slider.setRange(0, self._duration_ms)
         self.set_position_ms(self._position_slider.value())
+
+    def reset_playback_position(self) -> None:
+        self._duration_ms = 0
+        self._position_slider.setRange(0, 0)
+        self._position_slider.setValue(0)
+        self._position_label.setText("00:00 / 00:00")
 
     def set_jump_labels(self, jump_seconds: int) -> None:
         seconds = max(jump_seconds, 0)

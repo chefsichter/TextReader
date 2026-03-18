@@ -36,6 +36,7 @@ def create_gui_shell(runtime_context: Any) -> list[object]:
         initial_capture_mode=runtime_context.capture_mode,
     )
     _configure_player_window(player_window, runtime_context)
+    _restore_recent_history(player_window, runtime_context)
     tray_controller.show()
     return [player_window, tray_controller, runtime_context]
 
@@ -83,6 +84,7 @@ def _configure_player_window(player_window: PlayerWindow, runtime_context: Any) 
     player_window.set_jump_labels(runtime_context.jump_seconds)
     player_window.set_transport_enabled(audio_controller.has_loaded_audio())
     player_window.set_slider_enabled(audio_controller.can_seek())
+    player_window.set_playback_state(audio_controller.playback_state_name())
     player_window.connect_play_pause(lambda: _toggle_playback(runtime_context))
     player_window.connect_stop(audio_controller.stop)
     player_window.connect_jump_backward(
@@ -94,6 +96,12 @@ def _configure_player_window(player_window: PlayerWindow, runtime_context: Any) 
     player_window.connect_seek_requested(audio_controller.seek_to_ms)
     audio_controller.player.positionChanged.connect(player_window.set_position_ms)
     audio_controller.player.durationChanged.connect(player_window.set_duration_ms)
+    audio_controller.player.playbackStateChanged.connect(
+        lambda _state: _sync_playback_state(player_window, runtime_context),
+    )
+    audio_controller.player.mediaStatusChanged.connect(
+        lambda _status: _sync_media_availability(player_window, runtime_context),
+    )
 
 
 def _toggle_playback(runtime_context: Any) -> None:
@@ -125,3 +133,34 @@ def _update_player_window_for_capture(
     player_window.set_preview_text(history_entry.text)
     player_window.set_transport_enabled(audio_controller.has_loaded_audio())
     player_window.set_slider_enabled(audio_controller.can_seek())
+    player_window.set_playback_state(audio_controller.playback_state_name())
+
+
+def _restore_recent_history(player_window: PlayerWindow, runtime_context: Any) -> None:
+    entries = runtime_context.history_repository.list_recent(1)
+    if not entries:
+        return
+
+    latest_entry = entries[0]
+    status_text = latest_entry.error_message or str(latest_entry.status)
+    player_window.set_status_text(status_text)
+    player_window.set_preview_text(latest_entry.text)
+    if latest_entry.audio_path:
+        try:
+            runtime_context.audio_playback_controller.load_audio(latest_entry.audio_path)
+        except Exception:
+            return
+        _sync_media_availability(player_window, runtime_context)
+
+
+def _sync_playback_state(player_window: PlayerWindow, runtime_context: Any) -> None:
+    audio_controller = runtime_context.audio_playback_controller
+    player_window.set_playback_state(audio_controller.playback_state_name())
+
+
+def _sync_media_availability(player_window: PlayerWindow, runtime_context: Any) -> None:
+    audio_controller = runtime_context.audio_playback_controller
+    player_window.set_transport_enabled(audio_controller.has_loaded_audio())
+    player_window.set_slider_enabled(audio_controller.can_seek())
+    if not audio_controller.has_loaded_audio():
+        player_window.reset_playback_position()
