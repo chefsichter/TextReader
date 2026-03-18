@@ -132,6 +132,7 @@ class PlayerWindow(QWidget):
         self._cancel_synthesis_button = QPushButton("✕")
         self._cancel_synthesis_button.setObjectName("cancelSynthesisButton")
         self._cancel_synthesis_button.setToolTip("Cancel synthesis")
+        self._cancel_synthesis_button.setFixedWidth(30)
         self._cancel_synthesis_button.hide()
         self._theme_button = QPushButton("☾")
         self._theme_button.setObjectName("themeButton")

@@ -194,10 +194,10 @@ QPushButton#stopButton {
 }
 
 QPushButton#cancelSynthesisButton {
-    padding: 3px 10px;
-    min-width: 28px;
+    padding: 2px 4px;
+    min-height: 22px;
     color: #e74c3c;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: bold;
 }
 
