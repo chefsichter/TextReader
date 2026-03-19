@@ -1,6 +1,6 @@
 # 🔊 TextReader
 
-> **Press a hotkey. Your computer reads it aloud.** TextReader is a tray-based desktop app that captures selected or clipboard text and synthesizes natural-sounding speech — locally, on your GPU, with no cloud required.
+> **Press a hotkey. Your computer reads it aloud.** TextReader is a tray-based desktop app that captures selected or clipboard text and synthesizes natural-sounding speech with [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) — locally, on your GPU, with no cloud required.
 
 <br>
 
